@@ -26,7 +26,8 @@ class Produk extends Model
     ];
 
     protected $casts = [
-        'harga' => 'decimal:2',
+        'harga'      => 'decimal:2',
+        'tampil'     => 'boolean',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

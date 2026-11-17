@@ -19,13 +19,19 @@ Route::prefix('auth')->group(function () {
     Route::post('/login',    [AuthController::class, 'login']);
 });
 
+// Public storefront routes
+Route::get('/public/produk', [ProdukController::class, 'publicIndex']);
+Route::get('/public/profil', [ProfilUMKMController::class, 'publicShow']);
+
 // Protected routes – requires valid Sanctum token
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/me',      [AuthController::class, 'me']);
+    Route::get('/auth/login-history', [AuthController::class, 'loginHistory']);
     Route::apiResource('produk',   ProdukController::class);
     Route::apiResource('kategori', KategoriController::class, ['only' => ['index', 'store', 'update', 'destroy']]);
     Route::get('/profil', [ProfilUMKMController::class, 'show']);
     Route::post('/profil', [ProfilUMKMController::class, 'store']);
-    Route::apiResource('laporan-keuangan', LaporanKeuanganController::class);
+    Route::apiResource('laporan-keuangan', LaporanKeuanganController::class)
+        ->parameters(['laporan-keuangan' => 'laporan']);
 });

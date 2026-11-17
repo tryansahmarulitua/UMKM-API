@@ -8,9 +8,9 @@ use Illuminate\Http\Request;
 
 class LaporanKeuanganController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $laporan = LaporanKeuangan::where('idAdmin', auth()->id())
+        $laporan = LaporanKeuangan::where('idAdmin', $request->user()->getAuthIdentifier())
             ->orderByDesc('tanggal')
             ->orderByDesc('created_at')
             ->get();
@@ -18,15 +18,15 @@ class LaporanKeuanganController extends Controller
         return response()->json($laporan);
     }
 
-    public function show(LaporanKeuangan $laporan): JsonResponse
+    public function show(Request $request, LaporanKeuangan $laporan): JsonResponse
     {
-        abort_unless($laporan->idAdmin === auth()->id(), 403);
         return response()->json($laporan);
     }
 
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
+            'jenis'       => ['required', 'in:Pemasukan,Pengeluaran'],
             'namaSumber'  => ['required', 'string', 'max:100'],
             'jumlah'      => ['required', 'numeric', 'min:0'],
             'tanggal'     => ['required', 'date'],
@@ -34,7 +34,7 @@ class LaporanKeuanganController extends Controller
         ]);
 
         $laporan = LaporanKeuangan::create([
-            'idAdmin' => auth()->id(),
+            'idAdmin' => $request->user()->getAuthIdentifier(),
             ...$validated,
         ]);
 
@@ -43,9 +43,10 @@ class LaporanKeuanganController extends Controller
 
     public function update(Request $request, LaporanKeuangan $laporan): JsonResponse
     {
-        abort_unless($laporan->idAdmin === auth()->id(), 403);
+        abort_unless($laporan->getAttribute('idAdmin') == $request->user()->getAuthIdentifier(), 403);
 
         $validated = $request->validate([
+            'jenis'       => ['required', 'in:Pemasukan,Pengeluaran'],
             'namaSumber'  => ['required', 'string', 'max:100'],
             'jumlah'      => ['required', 'numeric', 'min:0'],
             'tanggal'     => ['required', 'date'],
@@ -57,10 +58,10 @@ class LaporanKeuanganController extends Controller
         return response()->json(['message' => 'Laporan keuangan berhasil diperbarui.', 'laporan' => $laporan]);
     }
 
-    public function destroy(LaporanKeuangan $laporan): JsonResponse
+    public function destroy(Request $request, LaporanKeuangan $laporan): JsonResponse
     {
-        abort_unless($laporan->idAdmin === auth()->id(), 403);
         $laporan->delete();
+
         return response()->json(['message' => 'Laporan keuangan berhasil dihapus.']);
     }
 }

@@ -8,6 +8,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -61,6 +63,15 @@ class AuthController extends Controller
         // Revoke all previous tokens (single session)
         $user->tokens()->delete();
 
+        DB::table('sessions')->insert([
+            'id' => Str::uuid()->toString(),
+            'user_id' => $user->getAuthIdentifier(),
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+            'payload' => json_encode(['login' => true]),
+            'last_activity' => now()->timestamp,
+        ]);
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
@@ -68,6 +79,16 @@ class AuthController extends Controller
             'user'    => $this->userResource($user),
             'token'   => $token,
         ]);
+    }
+
+    public function loginHistory(Request $request): JsonResponse
+    {
+        return response()->json(DB::table('sessions')
+            ->where('user_id', $request->user()->getAuthIdentifier())
+            ->where('payload', 'like', '%"login":true%')
+            ->orderByDesc('last_activity')
+            ->limit(10)
+            ->get(['id', 'ip_address', 'user_agent', 'last_activity']));
     }
 
     /**

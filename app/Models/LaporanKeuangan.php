@@ -14,6 +14,7 @@ class LaporanKeuangan extends Model
 
     protected $fillable = [
         'idAdmin',
+        'jenis',
         'namaSumber',
         'jumlah',
         'tanggal',

@@ -26,7 +26,7 @@ class KategoriController extends Controller
     public function update(Request $request, Kategori $kategori): JsonResponse
     {
         $validated = $request->validate([
-            'namaKategori' => ['required', 'string', 'max:100', "unique:tb_kategoriproduk,namaKategori,{$kategori->id}"],
+            'namaKategori' => ['required', 'string', 'max:100', "unique:tb_kategoriproduk,namaKategori,{$kategori->idKategori}"],
         ]);
 
         $kategori->update($validated);

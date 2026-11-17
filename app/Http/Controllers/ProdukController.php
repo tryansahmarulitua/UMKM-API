@@ -14,19 +14,26 @@ class ProdukController extends Controller
      */
     public function index(): JsonResponse
     {
-        $produk = Produk::with(['kategori:id,namaKategori'])
+        $produk = Produk::with(['kategori:idKategori,namaKategori'])
             ->orderByDesc('created_at')
             ->get();
 
         return response()->json($produk);
     }
 
-    /**
-     * Show the specified product.
+    /**     * Public storefront products.
+     */
+    public function publicIndex(): JsonResponse
+    {
+        return response()->json(Produk::with('kategori:idKategori,namaKategori')
+            ->where('tampil', true)->orderByDesc('created_at')->get());
+    }
+
+    /**     * Show the specified product.
      */
     public function show(Produk $produk): JsonResponse
     {
-        return response()->json($produk->load('kategori:id,namaKategori'));
+        return response()->json($produk->load('kategori:idKategori,namaKategori'));
     }
 
     /**
@@ -43,13 +50,15 @@ class ProdukController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'idKategori' => ['required', 'exists:tb_kategoriproduk,id'],
+            'idKategori' => ['required', 'exists:tb_kategoriproduk,idKategori'],
             'namaProduk' => ['required', 'string', 'max:100'],
             'deskripsi'  => ['required', 'string'],
             'harga'      => ['required', 'numeric', 'min:0'],
             'tampil'     => ['required', 'in:Y,N'],
             'foto'       => ['nullable', 'image', 'max:2048'],
         ]);
+
+        $validated['tampil'] = $validated['tampil'] === 'Y';
 
         $fotoPath = null;
         if ($request->hasFile('foto')) {
@@ -58,7 +67,7 @@ class ProdukController extends Controller
 
         $produk = Produk::create([
             'idKategori' => $validated['idKategori'],
-            'idAdmin'    => $request->user()->id,
+            'idAdmin'    => $request->user()->getAuthIdentifier(),
             'namaProduk' => $validated['namaProduk'],
             'deskripsi'  => $validated['deskripsi'],
             'harga'      => $validated['harga'],
@@ -68,7 +77,7 @@ class ProdukController extends Controller
 
         return response()->json([
             'message' => 'Produk berhasil ditambahkan.',
-            'produk'  => $produk->load('kategori:id,namaKategori'),
+            'produk'  => $produk->load('kategori:idKategori,namaKategori'),
         ], 201);
     }
 
@@ -86,13 +95,15 @@ class ProdukController extends Controller
     public function update(Request $request, Produk $produk): JsonResponse
     {
         $validated = $request->validate([
-            'idKategori' => ['required', 'exists:tb_kategoriproduk,id'],
+            'idKategori' => ['required', 'exists:tb_kategoriproduk,idKategori'],
             'namaProduk' => ['required', 'string', 'max:100'],
             'deskripsi'  => ['required', 'string'],
             'harga'      => ['required', 'numeric', 'min:0'],
             'tampil'     => ['required', 'in:Y,N'],
             'foto'       => ['nullable', 'image', 'max:2048'],
         ]);
+
+        $validated['tampil'] = $validated['tampil'] === 'Y';
 
         if ($request->hasFile('foto')) {
             if ($produk->foto) {
@@ -112,7 +123,7 @@ class ProdukController extends Controller
 
         return response()->json([
             'message' => 'Produk berhasil diperbarui.',
-            'produk'  => $produk->fresh('kategori:id,namaKategori'),
+            'produk'  => $produk->fresh('kategori:idKategori,namaKategori'),
         ]);
     }
 

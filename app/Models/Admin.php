@@ -13,6 +13,7 @@ class Admin extends Authenticatable
 
     protected $table = 'tb_admin';
     protected $primaryKey = 'idAdmin';
+    protected $authPasswordName = 'password';
     public $incrementing = true;
     protected $keyType = 'int';
 

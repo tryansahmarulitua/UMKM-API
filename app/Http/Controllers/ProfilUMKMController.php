@@ -9,8 +9,15 @@ use Illuminate\Support\Facades\Storage;
 
 class ProfilUMKMController extends Controller
 {
-    /**
-     * Get profil UMKM untuk admin yang login
+    /**     * Get public UMKM profile.
+     */
+    public function publicShow(): JsonResponse
+    {
+        $profil = ProfilUMKM::latest('updated_at')->first();
+        return response()->json($profil);
+    }
+
+    /**     * Get profil UMKM untuk admin yang login
      */
     public function show(): JsonResponse
     {
