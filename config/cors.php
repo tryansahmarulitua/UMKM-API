@@ -21,6 +21,7 @@ return [
 
     'allowed_origins' => [
         'https://umkm-app-bundariris.vercel.app',
+        'https://umkm-bundariris.vercel.app',
     ],
 
     'allowed_origins_patterns' => [],
