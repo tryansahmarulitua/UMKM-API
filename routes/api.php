@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ProdukController;
 use App\Http\Controllers\KategoriController;
 use App\Http\Controllers\ProfilUMKMController;
@@ -22,6 +23,9 @@ Route::prefix('auth')->group(function () {
 // Public storefront routes
 Route::get('/public/produk', [ProdukController::class, 'publicIndex']);
 Route::get('/public/profil', [ProfilUMKMController::class, 'publicShow']);
+
+// AI Chatbot
+Route::post('/chat', ChatController::class)->middleware('throttle:30,1');
 
 // Protected routes – requires valid Sanctum token
 Route::middleware('auth:sanctum')->group(function () {
