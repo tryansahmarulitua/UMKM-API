@@ -31,7 +31,7 @@ class ChatController extends Controller
                 'nama' => $product->namaProduk,
                 'kategori' => $product->kategori?->namaKategori,
                 'deskripsi' => $product->deskripsi,
-                'harga' => $product->harga,
+                'harga' => self::rupiah($product->harga),
             ])->values()->all(),
         ];
 
@@ -51,9 +51,7 @@ class ChatController extends Controller
                 ->withHeaders(['x-goog-api-key' => config('services.gemini.key')])
                 ->post('https://generativelanguage.googleapis.com/v1beta/models/' . config('services.gemini.model') . ':generateContent', [
                     'systemInstruction' => [
-                        'parts' => [[
-                            'text' => "Kamu adalah asisten ramah untuk {$businessName}. " . 'Jawab dalam bahasa Indonesia. Gunakan hanya data konteks berikut. Jika data tidak tersedia, katakan pengguna dapat menghubungi pemilik UMKM. Jangan mengarang harga, stok, alamat, kontak, atau kebijakan. Jawaban ringkas dan praktis. Konteks: ' . json_encode($context, JSON_UNESCAPED_UNICODE),
-                        ]],
+                        'parts' => [['text' => self::instruksi($businessName, $context)]],
                     ],
                     'contents' => $contents,
                     'generationConfig' => ['temperature' => 0.4, 'maxOutputTokens' => 400],
@@ -69,10 +67,47 @@ class ChatController extends Controller
                 return response()->json(['message' => 'Maaf, asisten belum dapat menjawab.'], 502);
             }
 
-            return response()->json(['answer' => trim($answer)]);
+            return response()->json(['answer' => self::teksBiasa($answer)]);
         } catch (\Throwable $exception) {
             Log::error('Gemini chat request error', ['message' => $exception->getMessage()]);
             return response()->json(['message' => 'Maaf, asisten sedang tidak tersedia.'], 502);
         }
+    }
+
+    private static function instruksi(string $businessName, array $context): string
+    {
+        return implode(' ', [
+            "Kamu adalah asisten ramah untuk {$businessName} di website usahanya.",
+            'Lawan bicaramu adalah calon pembeli, bukan pemilik usaha, jadi jangan memanggil mereka dengan nama usaha.',
+            'Bicaralah atas nama usaha dengan kata "kami".',
+            'Jawab dalam bahasa Indonesia, singkat dan praktis, dalam teks biasa tanpa format markdown (tanpa tanda *, # atau **).',
+            'Untuk daftar, tulis satu item per baris diawali "- ".',
+            'Gunakan hanya data konteks berikut. Jika datanya tidak ada, katakan terus terang lalu sarankan bertanya langsung ke kami lewat WhatsApp.',
+            'Jangan mengarang harga, stok, alamat, kontak, ongkir, jam buka, atau kebijakan.',
+            'Untuk memesan, arahkan pembeli ke tombol "Pesan lewat WhatsApp" di website.',
+            'Konteks: '.json_encode($context, JSON_UNESCAPED_UNICODE),
+        ]);
+    }
+
+    /** "5000.00" -> "Rp5.000"; cents are only shown when there are any. */
+    private static function rupiah(string|float|int $harga): string
+    {
+        $harga = (float) $harga;
+
+        return 'Rp'.number_format($harga, floor($harga) == $harga ? 0 : 2, ',', '.');
+    }
+
+    /** The chat bubble shows plain text, so markdown from the model would appear as raw symbols. */
+    private static function teksBiasa(string $answer): string
+    {
+        $rules = [
+            '/(\*\*|__)(.+?)\1/s' => '$2',                          // **bold**, __bold__
+            '/^[ \t]*[*\x{2022}][ \t]+/mu' => '- ',                 // "* item", "• item"
+            '/^[ \t]*#{1,6}[ \t]*/m' => '',                         // "## heading"
+            '/(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])/u' => '$1', // *italic*
+            '/\n{3,}/' => "\n\n",
+        ];
+
+        return trim(preg_replace(array_keys($rules), array_values($rules), $answer));
     }
 }
