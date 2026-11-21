@@ -13,7 +13,7 @@ Backend website Menu Sedap ala Bunda Riris berbasis **Laravel**. API ini dipakai
 | Kategori | Pengelolaan kategori produk |
 | Label Rasa | Manis, Asin, Gurih, Pedas, dan Renyah tersedia sejak awal; pemilik bisa menambah, mengganti, atau menghapus label |
 | Profil UMKM | Simpan dan tampilkan profil UMKM |
-| Laporan Keuangan | CRUD catatan pemasukan dan pengeluaran |
+| Laporan Keuangan | CRUD catatan modal, pemasukan, dan pengeluaran, serta ringkasan harian, mingguan, dan bulanan. Modal menambah saldo tapi tidak dihitung sebagai laba |
 | Riwayat Login | Catatan waktu, IP, dan perangkat setiap login admin |
 | Chatbot | Asisten produk untuk pengunjung, memakai Google Gemini dan data produk serta profil. Merekomendasikan produk sesuai label rasa dalam bentuk kartu produk |
 | Keamanan | Endpoint admin dilindungi token Sanctum. Login dikunci 15 menit setelah 5 kali gagal |
@@ -85,12 +85,14 @@ Repo ini hanya berisi API, tanpa halaman web. `GET /up` dipakai sebagai health c
 | GET/POST/PUT/DELETE | `/api/kategori` | Kelola kategori |
 | GET/POST/PUT/DELETE | `/api/rasa` | Kelola label rasa. Menghapus label hanya melepasnya dari produk |
 | GET/POST | `/api/profil` | Profil UMKM |
-| GET/POST/PUT/DELETE | `/api/laporan-keuangan` | Laporan keuangan |
+| GET/POST/PUT/DELETE | `/api/laporan-keuangan` | Laporan keuangan. `jenis`: `Pemasukan`, `Pengeluaran`, atau `Modal` |
+| GET | `/api/laporan-keuangan/ringkasan` | Ringkasan: `periode=bulanan&tahun=2026` (per bulan), atau `periode=mingguan` / `periode=harian` dengan `bulan=2026-11`. Tanpa parameter: bulanan tahun ini |
 
 Catatan:
 - **Edit produk yang menyertakan foto** dikirim sebagai `POST /api/produk/{id}?_method=PUT` dengan `multipart/form-data`, karena PHP tidak membaca upload file lewat `PUT`.
 - **Label rasa produk** dikirim sebagai `rasa[]` berisi `idRasa` saat menyimpan produk. Untuk melepas semua label, kirim `rasa` kosong; kalau `rasa` tidak dikirim sama sekali, label produk tidak berubah.
 - **Jawaban chatbot** berbentuk `{ "answer": "...", "produk": [...] }`. Gemini hanya memilih ID produk; server membuang ID yang tidak ada atau produk yang disembunyikan, lalu mengisi nama, harga, foto, dan rasa dari database (maksimal 4 kartu).
+- **Ringkasan keuangan** berisi `saldoAwal` (saldo sebelum periode), `rincian` (satu baris per hari, minggu, atau bulan yang ada catatannya, dengan `mulai`, `sampai`, `modal`, `pemasukan`, `pengeluaran`, `laba`, dan `saldoAkhir`), serta `total`. Minggu dihitung Senin–Minggu dan dipotong di batas bulan, sehingga jumlah semua minggu sama dengan total bulannya. Laba = pemasukan − pengeluaran; saldo = modal + pemasukan − pengeluaran.
 - Error validasi dikembalikan dengan status `422` dalam format `{ "message": "...", "errors": { "field": ["..."] } }`, dan pesannya berbahasa Indonesia.
 
 ---
@@ -144,12 +146,23 @@ Langkah ini ditulis untuk hosting tanpa terminal (misalnya InfinityFree). Kalau 
    SELECT '2026_11_22_000000_create_rasa_tables', COALESCE(MAX(batch), 0) + 1 FROM migrations;
    ```
 
+   **c. Jenis Modal di laporan keuangan**: tanpa perubahan ini, catatan Modal gagal disimpan.
+
+   ```sql
+   ALTER TABLE tb_laporankeuangan MODIFY jenis ENUM('Pemasukan', 'Pengeluaran', 'Modal') NOT NULL DEFAULT 'Pemasukan';
+
+   INSERT INTO migrations (migration, batch)
+   SELECT '2026_11_22_000001_add_modal_to_jenis_laporan', COALESCE(MAX(batch), 0) + 1 FROM migrations;
+   ```
+
+   Sebelumnya form dashboard memakai label "Pemasukan Modal", jadi modal lama mungkin tercatat sebagai Pemasukan. Setelah deploy, cek catatan lama dan ubah jenisnya menjadi Modal supaya laba tidak terlihat lebih besar.
+
 3. **Upload kode dari `main`:** `app/`, `bootstrap/app.php`, `config/`, `database/`, `lang/`, dan `routes/`. `vendor/` hanya perlu diupload ulang kalau `composer.lock` berubah. Folder `.github/` tidak perlu diupload.
    - **Jangan hapus atau timpa `public/storage`.**
    - Kalau ada file `bootstrap/cache/config.php` di server, hapus supaya konfigurasi baru terbaca.
    - File template Laravel yang sudah dihapus dari repo (`routes/web.php`, `routes/console.php`, `resources/`, `package.json`, `vite.config.js`) boleh ikut dihapus di server. Kalau tidak dihapus pun aman, karena tidak lagi dibaca aplikasi.
 4. **Periksa `.env` server:** `APP_ENV=production`, `APP_DEBUG=false`, `APP_NAME="Menu Sedap ala Bunda Riris"`, `APP_URL` berisi domain API, `DB_CONNECTION=mysql` beserta `DB_*`, dan `GEMINI_API_KEY`. Variabel lain di tabel di atas sudah punya default yang sesuai.
-5. **Uji setelah deploy:** login di dashboard dan cek Riwayat Login, upload foto produk, beri label rasa pada beberapa produk lalu tanya chatbot "ada yang manis?" dan pastikan kartu produknya muncul, lalu simpan profil dengan data tidak valid dan pastikan pesan error tampil dalam bahasa Indonesia.
+5. **Uji setelah deploy:** login di dashboard dan cek Riwayat Login, upload foto produk, beri label rasa pada beberapa produk lalu tanya chatbot "ada yang manis?" dan pastikan kartu produknya muncul, catat satu Modal dan cek ringkasan harian, mingguan, dan bulanan, lalu simpan profil dengan data tidak valid dan pastikan pesan error tampil dalam bahasa Indonesia.
 
 Domain frontend yang boleh memanggil API diatur di `config/cors.php`. Kalau domain Vercel berubah, tambahkan di `allowed_origins`.
 
