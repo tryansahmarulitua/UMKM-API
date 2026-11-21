@@ -71,7 +71,7 @@ Repo ini hanya berisi API, tanpa halaman web. `GET /up` dipakai sebagai health c
 | POST | `/api/auth/login` | Login admin dan mendapatkan token |
 | GET | `/api/public/produk` | Produk yang ditampilkan di katalog |
 | GET | `/api/public/profil` | Profil usaha |
-| POST | `/api/chat` | Chatbot: `message` maks. 500 karakter, `history` maks. 6 pesan. Dibatasi 30 pesan/menit per IP dan `CHAT_DAILY_LIMIT` per hari |
+| POST | `/api/chat` | Chatbot: `message` maks. 500 karakter, `history` maks. 6 pesan. Per IP: jeda 3 detik antarpesan dan 20 pertanyaan per jam; untuk semua pengunjung: `CHAT_DAILY_LIMIT` per hari |
 
 ### Terproteksi (memerlukan Bearer Token)
 
@@ -121,6 +121,8 @@ Langkah ini ditulis untuk hosting tanpa terminal (misalnya InfinityFree). Kalau 
 5. **Uji setelah deploy:** login di dashboard dan cek Riwayat Login, upload foto produk, coba chatbot di landing page, lalu simpan profil dengan data tidak valid dan pastikan pesan error tampil dalam bahasa Indonesia.
 
 Domain frontend yang boleh memanggil API diatur di `config/cors.php`. Kalau domain Vercel berubah, tambahkan di `allowed_origins`.
+
+API diakses lewat Cloudflare. `bootstrap/app.php` hanya memercayai header `X-Forwarded-For` dari rentang IP resmi Cloudflare, supaya batas chat dan kunci login memakai IP asli pengunjung. Kalau Cloudflare tidak lagi dipakai, pengaturan ini tetap aman dibiarkan.
 
 ---
 

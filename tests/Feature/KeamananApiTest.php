@@ -9,6 +9,7 @@ use App\Models\Produk;
 use App\Models\ProfilUMKM;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
@@ -145,6 +146,36 @@ class KeamananApiTest extends TestCase
         ])->assertNotFound();
         $this->deleteJson("/api/laporan-keuangan/{$laporan->idLK}")->assertNotFound();
         $this->assertDatabaseHas('tb_laporankeuangan', ['idLK' => $laporan->idLK, 'namaSumber' => $laporan->namaSumber]);
+    }
+
+    /**
+     * The API sits behind Cloudflare. Rate limits and login lockouts are per IP, so the visitor's real IP
+     * must be used, not Cloudflare's, while visitors must not be able to fake an IP with a header.
+     */
+    private function loginFrom(string $remoteAddr, ?string $forwardedFor = null): ?string
+    {
+        $headers = $forwardedFor ? ['X-Forwarded-For' => $forwardedFor] : [];
+        $this->withServerVariables(['REMOTE_ADDR' => $remoteAddr])
+            ->postJson('/api/auth/login', ['email' => 'owner@bunda.id', 'password' => 'rahasia123'], $headers)
+            ->assertOk();
+
+        return DB::table('login_history')->orderByDesc('id')->value('ip_address');
+    }
+
+    public function test_real_visitor_ip_is_read_from_requests_that_come_through_cloudflare(): void
+    {
+        $this->admin();
+
+        $this->assertSame('203.0.113.5', $this->loginFrom('162.158.10.20', '203.0.113.5'));
+        // A fake IP typed by the visitor sits to the left of the one Cloudflare appends.
+        $this->assertSame('203.0.113.5', $this->loginFrom('172.70.1.1', '6.6.6.6, 203.0.113.5'));
+    }
+
+    public function test_forwarded_ip_header_is_ignored_when_the_request_does_not_come_from_cloudflare(): void
+    {
+        $this->admin();
+
+        $this->assertSame('198.51.100.7', $this->loginFrom('198.51.100.7', '6.6.6.6'));
     }
 
     public function test_api_has_only_a_health_check_and_no_web_pages(): void
