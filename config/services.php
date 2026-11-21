@@ -42,4 +42,9 @@ return [
         'daily_limit' => (int) env('CHAT_DAILY_LIMIT', 500),
     ],
 
+    // Cloudflare Turnstile for chat and checkout (Project Plan §4.5). Required in production.
+    'turnstile' => [
+        'secret' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
 ];

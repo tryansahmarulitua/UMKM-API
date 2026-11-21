@@ -19,7 +19,7 @@ Backend website Menu Sedap ala Bunda Riris berbasis **Laravel**. API ini dipakai
 | Pengaturan | Rekening tujuan transfer dan nomor WhatsApp pemesanan, tampil ke pembeli setelah checkout |
 | Riwayat Login | Catatan waktu, IP, dan perangkat setiap login admin |
 | Chatbot | Asisten produk untuk pengunjung, memakai Google Gemini dan data produk serta profil. Merekomendasikan produk sesuai label rasa dalam bentuk kartu produk |
-| Keamanan | Endpoint admin dilindungi token Sanctum. Login dikunci 15 menit setelah 5 kali gagal |
+| Keamanan | Endpoint admin dilindungi token Sanctum. Login dikunci 15 menit setelah 5 kali gagal. Chat dan checkout dilindungi Cloudflare Turnstile; checkout juga memakai honeypot dan dibatasi 10 pesanan per jam per IP |
 
 ---
 
@@ -51,6 +51,7 @@ Sistem ini dirancang untuk **satu akun admin**. Untuk mengganti email atau passw
 | `GEMINI_API_KEY` | (kosong) | Kunci Google Gemini untuk chatbot. Tanpa kunci ini, chatbot membalas "asisten sedang tidak tersedia". |
 | `GEMINI_MODEL` | `gemini-3.8-flash` | Model Gemini yang dipakai chatbot. |
 | `CHAT_DAILY_LIMIT` | `500` | Batas pesan chat per hari untuk semua pengunjung, supaya kuota Gemini tidak habis. |
+| `TURNSTILE_SECRET_KEY` | (kosong) | Secret key Cloudflare Turnstile untuk chat dan checkout. **Wajib di server:** kalau kosong saat `APP_ENV=production`, chat dan checkout ditolak. Di laptop boleh kosong, dan pemeriksaan dilewati. |
 | `APP_TIMEZONE` | `Asia/Jakarta` | Zona waktu aplikasi. |
 
 Bahasa aplikasi ditetapkan ke bahasa Indonesia di `config/app.php`, jadi pesan validasi selalu berbahasa Indonesia (`lang/id/`), apa pun isi `APP_LOCALE`.
@@ -76,8 +77,8 @@ Repo ini hanya berisi API, tanpa halaman web. `GET /up` dipakai sebagai health c
 | GET | `/api/public/produk` | Produk yang ditampilkan di katalog, beserta kategori dan label rasanya |
 | GET | `/api/public/profil` | Profil usaha |
 | GET | `/api/public/pengaturan` | Rekening tujuan transfer dan nomor WhatsApp pemesanan (kalau kosong, nomor dari profil) |
-| POST | `/api/pesanan` | Checkout: `namaPelanggan`, `noWhatsApp` (nomor HP Indonesia), `pengiriman` (`Ambil sendiri`/`Dikirim`), `items[]` berisi `idProduk` dan `jumlah` (1–50, maks. 20 produk). Harga dari browser diabaikan |
-| POST | `/api/chat` | Chatbot: `message` maks. 500 karakter, `history` maks. 6 pesan. Per IP: jeda 3 detik antarpesan dan 20 pertanyaan per jam; untuk semua pengunjung: `CHAT_DAILY_LIMIT` per hari |
+| POST | `/api/pesanan` | Checkout: `namaPelanggan`, `noWhatsApp` (nomor HP Indonesia), `pengiriman` (`Ambil sendiri`/`Dikirim`), `items[]` berisi `idProduk` dan `jumlah` (1–50, maks. 20 produk), dan token `turnstile`. Harga dari browser diabaikan. Ditolak kalau token Turnstile tidak valid (`403`), kolom honeypot `website` terisi (`422`), atau sudah 10 pesanan tersimpan dari IP yang sama dalam satu jam (`429`) |
+| POST | `/api/chat` | Chatbot: `message` maks. 500 karakter, `history` maks. 6 pesan. Pesan pertama wajib membawa token `turnstile`; jawabannya berisi `tiket` yang berlaku 1 jam untuk IP yang sama, dan dikirim sebagai `tiket` di pesan berikutnya. Tanpa keduanya: `403` dengan `perluVerifikasi: true`. Per IP: jeda 3 detik antarpesan dan 20 pertanyaan per jam; untuk semua pengunjung: `CHAT_DAILY_LIMIT` per hari |
 
 ### Terproteksi (memerlukan Bearer Token)
 
@@ -221,8 +222,9 @@ Langkah ini ditulis untuk hosting tanpa terminal (misalnya InfinityFree). Kalau 
    - **Jangan hapus atau timpa `public/storage`.**
    - Kalau ada file `bootstrap/cache/config.php` di server, hapus supaya konfigurasi baru terbaca.
    - File template Laravel yang sudah dihapus dari repo (`routes/web.php`, `routes/console.php`, `resources/`, `package.json`, `vite.config.js`) boleh ikut dihapus di server. Kalau tidak dihapus pun aman, karena tidak lagi dibaca aplikasi.
-4. **Periksa `.env` server:** `APP_ENV=production`, `APP_DEBUG=false`, `APP_NAME="Menu Sedap ala Bunda Riris"`, `APP_URL` berisi domain API, `DB_CONNECTION=mysql` beserta `DB_*`, dan `GEMINI_API_KEY`. Variabel lain di tabel di atas sudah punya default yang sesuai.
-5. **Uji setelah deploy:** login di dashboard dan cek Riwayat Login, upload foto produk, beri label rasa pada beberapa produk lalu tanya chatbot "ada yang manis?" dan pastikan kartu produknya muncul, catat satu Modal dan cek ringkasan harian, mingguan, dan bulanan, isi Pengaturan lalu buat satu pesanan dari landing page dan tandai Lunas (pastikan pemasukannya muncul satu kali), lalu simpan profil dengan data tidak valid dan pastikan pesan error tampil dalam bahasa Indonesia.
+4. **Buat widget Cloudflare Turnstile** (gratis) di dashboard Cloudflare → Turnstile → Add widget, dengan domain landing page (misalnya `umkm-bundariris.vercel.app`) dan mode *Managed*. Isi **secret key** ke `TURNSTILE_SECRET_KEY` di `.env` server. **Site key** diisi ke variabel `VITE_TURNSTILE_SITE_KEY` di Vercel (project landing), lalu redeploy landing.
+5. **Periksa `.env` server:** `APP_ENV=production`, `APP_DEBUG=false`, `APP_NAME="Menu Sedap ala Bunda Riris"`, `APP_URL` berisi domain API, `DB_CONNECTION=mysql` beserta `DB_*`, `GEMINI_API_KEY`, dan `TURNSTILE_SECRET_KEY`. Variabel lain di tabel di atas sudah punya default yang sesuai.
+6. **Uji setelah deploy:** login di dashboard dan cek Riwayat Login, upload foto produk, beri label rasa pada beberapa produk lalu tanya chatbot "ada yang manis?" dan pastikan kartu produknya muncul, catat satu Modal dan cek ringkasan harian, mingguan, dan bulanan, isi Pengaturan lalu buat satu pesanan dari landing page dan tandai Lunas (pastikan pemasukannya muncul satu kali), lalu simpan profil dengan data tidak valid dan pastikan pesan error tampil dalam bahasa Indonesia.
 
 Domain frontend yang boleh memanggil API diatur di `config/cors.php`. Kalau domain Vercel berubah, tambahkan di `allowed_origins`.
 
