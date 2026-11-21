@@ -22,6 +22,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Saved orders are limited to 10 per hour in PesananController; this only stops floods of bad requests.
+        RateLimiter::for('pesanan', fn (Request $request) => Limit::perHour(60)->by('checkout:'.$request->ip())
+            ->response(fn () => response()->json(['message' => 'Terlalu banyak percobaan checkout. Coba lagi nanti, atau pesan langsung lewat WhatsApp.'], 429)));
+
         RateLimiter::for('chat', function (Request $request) {
             $resting = fn () => response()->json(['message' => 'Asisten sedang istirahat. Silakan tanya langsung lewat WhatsApp.'], 429);
 

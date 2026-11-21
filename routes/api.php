@@ -27,7 +27,7 @@ Route::get('/public/profil', [ProfilUMKMController::class, 'publicShow']);
 Route::get('/public/pengaturan', [PengaturanController::class, 'publicShow']);
 
 // Checkout without an account (Project Plan §1.2)
-Route::post('/pesanan', [PesananController::class, 'store']);
+Route::post('/pesanan', [PesananController::class, 'store'])->middleware('throttle:pesanan');
 
 // AI Chatbot
 Route::post('/chat', ChatController::class)->middleware('throttle:chat');

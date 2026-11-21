@@ -7,11 +7,13 @@ use App\Models\Pengaturan;
 use App\Models\Pesanan;
 use App\Models\Produk;
 use App\Support\NomorWhatsApp;
+use App\Support\Turnstile;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -24,8 +26,16 @@ class PesananController extends Controller
     public const MAKS_JUMLAH = 50;
     public const MAKS_PRODUK = 20;
 
+    /** Project Plan §4.5: kept loose (10) because many mobile users share one IP. */
+    public const MAKS_PESANAN_PER_JAM = 10;
+
     public function store(Request $request): JsonResponse
     {
+        // Honeypot: a field hidden from people, so only bots fill it in.
+        if (filled($request->input('website'))) {
+            return response()->json(['message' => 'Pesanan ditolak.'], 422);
+        }
+
         $data = $request->validate([
             'namaPelanggan' => ['required', 'string', 'max:100'],
             'noWhatsApp' => ['required', 'string', 'max:20', 'regex:'.NomorWhatsApp::REGEX],
@@ -33,7 +43,14 @@ class PesananController extends Controller
             'items' => ['required', 'array', 'min:1', 'max:'.self::MAKS_PRODUK],
             'items.*.idProduk' => ['required', 'integer', 'distinct'],
             'items.*.jumlah' => ['required', 'integer', 'between:1,'.self::MAKS_JUMLAH],
+            'turnstile' => ['nullable', 'string', 'max:2048'],
         ]);
+
+        // Only orders that were actually saved count towards the hourly limit.
+        $kunciBatas = 'pesanan:'.$request->ip();
+        if (RateLimiter::tooManyAttempts($kunciBatas, self::MAKS_PESANAN_PER_JAM)) {
+            return response()->json(['message' => 'Sudah 10 pesanan dalam satu jam dari jaringan ini. Coba lagi nanti, atau pesan langsung lewat WhatsApp.'], 429);
+        }
 
         $ids = array_column($data['items'], 'idProduk');
         $semua = Produk::whereIn('idProduk', $ids)->get(['idProduk', 'namaProduk', 'harga', 'tampil'])->keyBy('idProduk');
@@ -43,6 +60,11 @@ class PesananController extends Controller
             throw ValidationException::withMessages(['items' => $habis
                 ? "{$habis->namaProduk} sudah tidak tersedia. Hapus dari keranjang lalu coba lagi."
                 : 'Ada produk yang sudah tidak tersedia. Hapus dari keranjang lalu coba lagi.']);
+        }
+
+        // Checked last: the token works only once, so a mistake elsewhere in the form must not use it up.
+        if (! Turnstile::lolos($data['turnstile'] ?? null, $request->ip())) {
+            return response()->json(['message' => 'Verifikasi keamanan gagal. Selesaikan verifikasi lalu coba lagi.'], 403);
         }
 
         // Whole cents, so the total matches a manual calculation exactly.
@@ -68,6 +90,7 @@ class PesananController extends Controller
             'jumlah' => $row['jumlah'],
             'subtotal' => $row['subtotalSen'] / 100,
         ], $baris));
+        RateLimiter::hit($kunciBatas, 3600);
 
         return response()->json([
             'nomorPesanan' => $pesanan->nomorPesanan,
