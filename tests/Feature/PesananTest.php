@@ -123,6 +123,9 @@ class PesananTest extends TestCase
         $this->checkout(['items' => []])->assertJsonPath('errors.items.0', 'Keranjang masih kosong.');
         $this->checkout(['noWhatsApp' => '12345'])->assertJsonPath('errors.noWhatsApp.0', 'Nomor WhatsApp tidak valid. Contoh: 081234567890.');
         $this->checkout(['noWhatsApp' => '0212345678'])->assertJsonValidationErrors('noWhatsApp'); // landline
+        // 16 digits once stored as 62..., one more than the column holds.
+        $this->checkout(['noWhatsApp' => '6281234567890123'])->assertJsonValidationErrors('noWhatsApp');
+        $this->checkout(['noWhatsApp' => '0812-3456-7890-123'])->assertJsonValidationErrors('noWhatsApp');
         $this->checkout(['pengiriman' => 'Drone'])->assertJsonValidationErrors('pengiriman');
         $this->checkout(['namaPelanggan' => ''])->assertJsonValidationErrors('namaPelanggan');
         $this->checkout(['items' => [['idProduk' => $this->abon->idProduk, 'jumlah' => 0]]])->assertJsonPath('errors', ['items.0.jumlah' => ['Jumlah tiap produk 1 sampai 50.']]);
@@ -275,6 +278,10 @@ class PesananTest extends TestCase
             ->assertOk()
             ->assertJsonPath('pengaturan.nomorWhatsApp', '6285711112222');
         $this->putJson('/api/pengaturan', ['nomorWhatsApp' => '021-555'])->assertJsonValidationErrors('nomorWhatsApp');
+        $this->putJson('/api/pengaturan', ['nomorWhatsApp' => '6281234567890123'])->assertJsonValidationErrors('nomorWhatsApp');
+        $this->putJson('/api/pengaturan', ['nomorWhatsApp' => '0812-3456-7890-12'])->assertOk()
+            ->assertJsonPath('pengaturan.nomorWhatsApp', '628123456789012');
+        $this->putJson('/api/pengaturan', ['nomorWhatsApp' => '+62 857-1111-2222'])->assertOk();
         $this->putJson('/api/pengaturan', ['nomorRekening' => 'abc'])->assertJsonValidationErrors('nomorRekening');
 
         $this->getJson('/api/public/pengaturan')->assertOk()
