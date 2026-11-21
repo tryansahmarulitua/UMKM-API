@@ -16,7 +16,7 @@ class KategoriController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'namaKategori' => ['required', 'string', 'max:100', 'unique:tb_kategoriproduk,namaKategori'],
+            'namaKategori' => ['required', 'string', 'max:20', 'unique:tb_kategoriproduk,namaKategori'],
         ]);
 
         $kategori = Kategori::create($validated);
@@ -26,7 +26,7 @@ class KategoriController extends Controller
     public function update(Request $request, Kategori $kategori): JsonResponse
     {
         $validated = $request->validate([
-            'namaKategori' => ['required', 'string', 'max:100', "unique:tb_kategoriproduk,namaKategori,{$kategori->idKategori}"],
+            'namaKategori' => ['required', 'string', 'max:20', "unique:tb_kategoriproduk,namaKategori,{$kategori->idKategori}"],
         ]);
 
         $kategori->update($validated);
@@ -35,6 +35,11 @@ class KategoriController extends Controller
 
     public function destroy(Kategori $kategori): JsonResponse
     {
+        // PP §8.4: deleting a category must not leave products without one.
+        if ($kategori->produk()->exists()) {
+            return response()->json(['message' => 'Kategori masih dipakai produk. Pindahkan atau hapus produknya dulu.'], 422);
+        }
+
         $kategori->delete();
         return response()->json(['message' => 'Kategori berhasil dihapus.']);
     }

@@ -39,7 +39,7 @@ class ProfilUMKMController extends Controller
             'namaUMKM'   => ['required', 'string', 'max:100'],
             'deskripsi'  => ['required', 'string'],
             'alamat'     => ['required', 'string', 'max:255'],
-            'noTelepon'  => ['required', 'string', 'max:20'],
+            'noTelepon'  => ['required', 'string', 'max:15'],
             'email'      => ['nullable', 'email', 'max:100'],
             'mediaSosial' => ['nullable', 'string', 'max:255'],
             'foto'       => ['nullable', 'image', 'max:2048'],
@@ -48,14 +48,6 @@ class ProfilUMKMController extends Controller
         $profil = ProfilUMKM::where('idAdmin', auth()->id())->first();
 
         if ($profil) {
-            // Update existing
-            if ($request->hasFile('foto')) {
-                if ($profil->foto) {
-                    Storage::disk('public')->delete($profil->foto);
-                }
-                $validated['foto'] = $request->file('foto')->store('profil', 'public');
-            }
-
             $updateData = collect($validated)->except('foto')->toArray();
             if ($request->hasFile('foto')) {
                 if ($profil->foto) {

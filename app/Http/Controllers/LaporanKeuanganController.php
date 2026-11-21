@@ -20,6 +20,8 @@ class LaporanKeuanganController extends Controller
 
     public function show(Request $request, LaporanKeuangan $laporan): JsonResponse
     {
+        $this->ensureOwner($request, $laporan);
+
         return response()->json($laporan);
     }
 
@@ -30,7 +32,7 @@ class LaporanKeuanganController extends Controller
             'namaSumber'  => ['required', 'string', 'max:100'],
             'jumlah'      => ['required', 'numeric', 'min:0'],
             'tanggal'     => ['required', 'date'],
-            'keterangan'  => ['nullable', 'string', 'max:255'],
+            'keterangan'  => ['nullable', 'string', 'max:100'],
         ]);
 
         $laporan = LaporanKeuangan::create([
@@ -43,14 +45,14 @@ class LaporanKeuanganController extends Controller
 
     public function update(Request $request, LaporanKeuangan $laporan): JsonResponse
     {
-        abort_unless($laporan->getAttribute('idAdmin') == $request->user()->getAuthIdentifier(), 403);
+        $this->ensureOwner($request, $laporan);
 
         $validated = $request->validate([
             'jenis'       => ['required', 'in:Pemasukan,Pengeluaran'],
             'namaSumber'  => ['required', 'string', 'max:100'],
             'jumlah'      => ['required', 'numeric', 'min:0'],
             'tanggal'     => ['required', 'date'],
-            'keterangan'  => ['nullable', 'string', 'max:255'],
+            'keterangan'  => ['nullable', 'string', 'max:100'],
         ]);
 
         $laporan->update($validated);
@@ -60,8 +62,14 @@ class LaporanKeuanganController extends Controller
 
     public function destroy(Request $request, LaporanKeuangan $laporan): JsonResponse
     {
+        $this->ensureOwner($request, $laporan);
         $laporan->delete();
 
         return response()->json(['message' => 'Laporan keuangan berhasil dihapus.']);
+    }
+
+    private function ensureOwner(Request $request, LaporanKeuangan $laporan): void
+    {
+        abort_unless($laporan->getAttribute('idAdmin') == $request->user()->getAuthIdentifier(), 403, 'Laporan ini bukan milik akun Anda.');
     }
 }
