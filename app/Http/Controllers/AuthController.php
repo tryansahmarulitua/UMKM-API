@@ -45,13 +45,11 @@ class AuthController extends Controller
         // Revoke all previous tokens (single session)
         $user->tokens()->delete();
 
-        DB::table('sessions')->insert([
-            'id' => Str::uuid()->toString(),
-            'user_id' => $user->getAuthIdentifier(),
+        DB::table('login_history')->insert([
+            'idAdmin' => $user->getAuthIdentifier(),
             'ip_address' => $request->ip(),
             'user_agent' => $request->userAgent(),
-            'payload' => json_encode(['login' => true]),
-            'last_activity' => now()->timestamp,
+            'created_at' => now(),
         ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
@@ -65,12 +63,19 @@ class AuthController extends Controller
 
     public function loginHistory(Request $request): JsonResponse
     {
-        return response()->json(DB::table('sessions')
-            ->where('user_id', $request->user()->getAuthIdentifier())
-            ->where('payload', 'like', '%"login":true%')
-            ->orderByDesc('last_activity')
+        $history = DB::table('login_history')
+            ->where('idAdmin', $request->user()->getAuthIdentifier())
+            ->orderByDesc('id')
             ->limit(10)
-            ->get(['id', 'ip_address', 'user_agent', 'last_activity']));
+            ->get();
+
+        // `last_activity` (unix seconds) keeps the response shape the dashboard already reads.
+        return response()->json($history->map(fn ($row) => [
+            'id' => $row->id,
+            'ip_address' => $row->ip_address,
+            'user_agent' => $row->user_agent,
+            'last_activity' => strtotime($row->created_at),
+        ]));
     }
 
     /**

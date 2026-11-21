@@ -22,7 +22,7 @@ Route::get('/public/produk', [ProdukController::class, 'publicIndex']);
 Route::get('/public/profil', [ProfilUMKMController::class, 'publicShow']);
 
 // AI Chatbot
-Route::post('/chat', ChatController::class)->middleware('throttle:30,1');
+Route::post('/chat', ChatController::class)->middleware('throttle:chat');
 
 // Protected routes – requires valid Sanctum token
 Route::middleware('auth:sanctum')->group(function () {

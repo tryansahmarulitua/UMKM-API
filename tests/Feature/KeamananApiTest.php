@@ -170,6 +170,58 @@ class KeamananApiTest extends TestCase
         $this->assertSame($files[0], ProfilUMKM::first()->foto);
     }
 
+    public function test_login_history_has_its_own_table_so_session_cleanup_cannot_erase_it(): void
+    {
+        $this->admin();
+        $this->postJson('/api/auth/login', ['email' => 'owner@bunda.id', 'password' => 'rahasia123'])->assertOk();
+        $token = $this->postJson('/api/auth/login', ['email' => 'owner@bunda.id', 'password' => 'rahasia123'])->json('token');
+
+        $this->assertDatabaseCount('sessions', 0);
+        $this->assertDatabaseCount('login_history', 2);
+
+        $this->withToken($token)->getJson('/api/auth/login-history')
+            ->assertOk()
+            ->assertJsonCount(2)
+            ->assertJsonStructure([['id', 'ip_address', 'user_agent', 'last_activity']]);
+    }
+
+    public function test_profile_rejects_unusable_social_link_and_phone_number(): void
+    {
+        Sanctum::actingAs($this->admin());
+        $profil = ['namaUMKM' => 'Bunda Riris', 'deskripsi' => 'Camilan', 'alamat' => 'Bekasi'];
+
+        foreach (['https://', 'https://exa mple.com', 'javascript:alert(1)', 'instagram.com/bunda'] as $link) {
+            $this->postJson('/api/profil', $profil + ['noTelepon' => '081234500000', 'mediaSosial' => $link])
+                ->assertJsonValidationErrors('mediaSosial');
+        }
+        $this->postJson('/api/profil', $profil + ['noTelepon' => 'telepon saya'])->assertJsonValidationErrors('noTelepon');
+
+        $this->postJson('/api/profil', $profil + ['noTelepon' => '0812-3450-0000', 'mediaSosial' => 'https://instagram.com/bundariris_17new'])
+            ->assertCreated();
+    }
+
+    public function test_chat_history_is_capped_at_6_turns(): void
+    {
+        Http::fake();
+        $history = array_fill(0, 7, ['role' => 'user', 'text' => 'halo']);
+
+        $this->postJson('/api/chat', ['message' => 'halo', 'history' => $history])->assertJsonValidationErrors('history');
+    }
+
+    public function test_chat_has_a_daily_limit_shared_by_all_visitors(): void
+    {
+        config(['services.gemini.daily_limit' => 2]);
+        Http::fake(['*' => Http::response(['candidates' => [['content' => ['parts' => [['text' => 'Halo!']]]]]])]);
+
+        foreach (['10.0.0.1', '10.0.0.2'] as $ip) {
+            $this->withServerVariables(['REMOTE_ADDR' => $ip])->postJson('/api/chat', ['message' => 'halo'])->assertOk();
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '10.0.0.3'])->postJson('/api/chat', ['message' => 'halo'])
+            ->assertTooManyRequests()
+            ->assertJsonPath('message', 'Asisten sedang istirahat. Silakan tanya langsung lewat WhatsApp.');
+    }
+
     public function test_chat_message_is_limited_to_500_characters(): void
     {
         Http::fake();

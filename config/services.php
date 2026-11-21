@@ -38,6 +38,8 @@ return [
     'gemini' => [
         'key'   => env('GEMINI_API_KEY'),
         'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+        // Shared by every visitor so a single abuser cannot burn the whole Gemini quota (PP R4/R5).
+        'daily_limit' => (int) env('CHAT_DAILY_LIMIT', 500),
     ],
 
 ];
