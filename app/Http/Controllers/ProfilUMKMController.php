@@ -39,10 +39,13 @@ class ProfilUMKMController extends Controller
             'namaUMKM'   => ['required', 'string', 'max:100'],
             'deskripsi'  => ['required', 'string'],
             'alamat'     => ['required', 'string', 'max:255'],
-            'noTelepon'  => ['required', 'string', 'max:15'],
+            'noTelepon'  => ['required', 'string', 'max:15', 'regex:/^\+?[0-9][0-9\s-]{7,}$/'],
             'email'      => ['nullable', 'email', 'max:100'],
-            'mediaSosial' => ['nullable', 'string', 'max:255'],
+            'mediaSosial' => ['nullable', 'string', 'max:255', 'url:http,https'],
             'foto'       => ['nullable', 'image', 'max:2048'],
+        ], [
+            'noTelepon.regex' => 'Nomor telepon hanya boleh berisi angka, spasi, tanda -, atau + di depan (contoh 0812-3456-7890).',
+            'mediaSosial.url' => 'Media sosial harus berupa link lengkap, contoh https://instagram.com/namausaha.',
         ]);
 
         $profil = ProfilUMKM::where('idAdmin', auth()->id())->first();
