@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ProfilUMKM;
+use App\Support\FotoUploader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -40,7 +41,7 @@ class ProfilUMKMController extends Controller
             'noTelepon'  => ['required', 'string', 'max:15', 'regex:/^\+?[0-9][0-9\s-]{7,}$/'],
             'email'      => ['nullable', 'email', 'max:100'],
             'mediaSosial' => ['nullable', 'string', 'max:255', 'url:http,https'],
-            'foto'       => ['nullable', 'image', 'max:2048'],
+            'foto'       => FotoUploader::RULES,
         ], [
             'noTelepon.regex' => 'Nomor telepon hanya boleh berisi angka, spasi, tanda -, atau + di depan (contoh 0812-3456-7890).',
             'mediaSosial.url' => 'Media sosial harus berupa link lengkap, contoh https://instagram.com/namausaha.',
@@ -54,7 +55,7 @@ class ProfilUMKMController extends Controller
             if ($profil->foto) {
                 Storage::disk('public')->delete($profil->foto);
             }
-            $data['foto'] = $request->file('foto')->store('profil', 'public');
+            $data['foto'] = FotoUploader::simpan($request->file('foto'), 'profil');
         }
 
         $profil->fill($data)->save();
