@@ -9,127 +9,60 @@ use Illuminate\Support\Facades\Storage;
 
 class ProdukController extends Controller
 {
-    /**
-     * Display a listing of products.
-     */
+    private const KATEGORI = 'kategori:idKategori,namaKategori';
+
     public function index(): JsonResponse
     {
-        $produk = Produk::with(['kategori:idKategori,namaKategori'])
-            ->orderByDesc('created_at')
-            ->get();
-
-        return response()->json($produk);
+        return response()->json(Produk::with(self::KATEGORI)->orderByDesc('created_at')->get());
     }
 
-    /**     * Public storefront products.
+    /**
+     * Products shown on the public landing page.
      */
     public function publicIndex(): JsonResponse
     {
-        return response()->json(Produk::with('kategori:idKategori,namaKategori')
-            ->where('tampil', true)->orderByDesc('created_at')->get());
+        return response()->json(Produk::with(self::KATEGORI)->where('tampil', true)->orderByDesc('created_at')->get());
     }
 
-    /**     * Show the specified product.
-     */
     public function show(Produk $produk): JsonResponse
     {
-        return response()->json($produk->load('kategori:idKategori,namaKategori'));
+        return response()->json($produk->load(self::KATEGORI));
     }
 
-    /**
-     * Show the form for creating a new product.
-     */
-    public function create(): JsonResponse
-    {
-        return response()->json(['message' => 'Create product form']);
-    }
-
-    /**
-     * Store a newly created product in storage.
-     */
     public function store(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'idKategori' => ['required', 'exists:tb_kategoriproduk,idKategori'],
-            'namaProduk' => ['required', 'string', 'max:100'],
-            'deskripsi'  => ['required', 'string', 'max:255'],
-            'harga'      => ['required', 'numeric', 'min:0', 'max:999999.99', 'decimal:0,2'],
-            'tampil'     => ['required', 'in:Y,N'],
-            'foto'       => ['nullable', 'image', 'max:2048'],
-        ]);
+        $data = $this->validated($request);
+        $data['idAdmin'] = $request->user()->getAuthIdentifier();
+        $data['foto'] = $request->hasFile('foto') ? $request->file('foto')->store('produk', 'public') : null;
 
-        $validated['tampil'] = $validated['tampil'] === 'Y';
-
-        $fotoPath = null;
-        if ($request->hasFile('foto')) {
-            $fotoPath = $request->file('foto')->store('produk', 'public');
-        }
-
-        $produk = Produk::create([
-            'idKategori' => $validated['idKategori'],
-            'idAdmin'    => $request->user()->getAuthIdentifier(),
-            'namaProduk' => $validated['namaProduk'],
-            'deskripsi'  => $validated['deskripsi'],
-            'harga'      => $validated['harga'],
-            'tampil'     => $validated['tampil'],
-            'foto'       => $fotoPath,
-        ]);
+        $produk = Produk::create($data);
 
         return response()->json([
             'message' => 'Produk berhasil ditambahkan.',
-            'produk'  => $produk->load('kategori:idKategori,namaKategori'),
+            'produk'  => $produk->load(self::KATEGORI),
         ], 201);
     }
 
-    /**
-     * Show the form for editing the specified product.
-     */
-    public function edit(Produk $produk): JsonResponse
-    {
-        return response()->json(['message' => 'Edit product form', 'produk' => $produk]);
-    }
-
-    /**
-     * Update the specified product in storage.
-     */
     public function update(Request $request, Produk $produk): JsonResponse
     {
-        $validated = $request->validate([
-            'idKategori' => ['required', 'exists:tb_kategoriproduk,idKategori'],
-            'namaProduk' => ['required', 'string', 'max:100'],
-            'deskripsi'  => ['required', 'string', 'max:255'],
-            'harga'      => ['required', 'numeric', 'min:0', 'max:999999.99', 'decimal:0,2'],
-            'tampil'     => ['required', 'in:Y,N'],
-            'foto'       => ['nullable', 'image', 'max:2048'],
-        ]);
-
-        $validated['tampil'] = $validated['tampil'] === 'Y';
+        $data = $this->validated($request);
+        unset($data['foto']); // keep the current photo unless a new file is uploaded
 
         if ($request->hasFile('foto')) {
             if ($produk->foto) {
                 Storage::disk('public')->delete($produk->foto);
             }
-            $validated['foto'] = $request->file('foto')->store('produk', 'public');
+            $data['foto'] = $request->file('foto')->store('produk', 'public');
         }
 
-        $produk->update([
-            'idKategori' => $validated['idKategori'],
-            'namaProduk' => $validated['namaProduk'],
-            'deskripsi'  => $validated['deskripsi'],
-            'harga'      => $validated['harga'],
-            'tampil'     => $validated['tampil'],
-            'foto'       => $validated['foto'] ?? $produk->foto,
-        ]);
+        $produk->update($data);
 
         return response()->json([
             'message' => 'Produk berhasil diperbarui.',
-            'produk'  => $produk->fresh('kategori:idKategori,namaKategori'),
+            'produk'  => $produk->fresh(self::KATEGORI),
         ]);
     }
 
-    /**
-     * Remove the specified product from storage.
-     */
     public function destroy(Produk $produk): JsonResponse
     {
         if ($produk->foto) {
@@ -139,5 +72,20 @@ class ProdukController extends Controller
         $produk->delete();
 
         return response()->json(['message' => 'Produk berhasil dihapus.']);
+    }
+
+    private function validated(Request $request): array
+    {
+        $data = $request->validate([
+            'idKategori' => ['required', 'exists:tb_kategoriproduk,idKategori'],
+            'namaProduk' => ['required', 'string', 'max:100'],
+            'deskripsi'  => ['required', 'string', 'max:255'],
+            'harga'      => ['required', 'numeric', 'min:0', 'max:999999.99', 'decimal:0,2'],
+            'tampil'     => ['required', 'in:Y,N'],
+            'foto'       => ['nullable', 'image', 'max:2048'],
+        ]);
+        $data['tampil'] = $data['tampil'] === 'Y';
+
+        return $data;
     }
 }

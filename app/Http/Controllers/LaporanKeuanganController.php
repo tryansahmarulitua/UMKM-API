@@ -8,6 +8,14 @@ use Illuminate\Http\Request;
 
 class LaporanKeuanganController extends Controller
 {
+    private const RULES = [
+        'jenis'       => ['required', 'in:Pemasukan,Pengeluaran'],
+        'namaSumber'  => ['required', 'string', 'max:100'],
+        'jumlah'      => ['required', 'numeric', 'min:0', 'max:9999999999999.99', 'decimal:0,2'], // decimal(15,2)
+        'tanggal'     => ['required', 'date'],
+        'keterangan'  => ['nullable', 'string', 'max:100'],
+    ];
+
     public function index(Request $request): JsonResponse
     {
         $laporan = LaporanKeuangan::where('idAdmin', $request->user()->getAuthIdentifier())
@@ -27,13 +35,7 @@ class LaporanKeuanganController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $validated = $request->validate([
-            'jenis'       => ['required', 'in:Pemasukan,Pengeluaran'],
-            'namaSumber'  => ['required', 'string', 'max:100'],
-            'jumlah'      => ['required', 'numeric', 'min:0', 'max:9999999999999.99', 'decimal:0,2'], // decimal(15,2)
-            'tanggal'     => ['required', 'date'],
-            'keterangan'  => ['nullable', 'string', 'max:100'],
-        ]);
+        $validated = $request->validate(self::RULES);
 
         $laporan = LaporanKeuangan::create([
             'idAdmin' => $request->user()->getAuthIdentifier(),
@@ -47,15 +49,7 @@ class LaporanKeuanganController extends Controller
     {
         $this->ensureOwner($request, $laporan);
 
-        $validated = $request->validate([
-            'jenis'       => ['required', 'in:Pemasukan,Pengeluaran'],
-            'namaSumber'  => ['required', 'string', 'max:100'],
-            'jumlah'      => ['required', 'numeric', 'min:0', 'max:9999999999999.99', 'decimal:0,2'], // decimal(15,2)
-            'tanggal'     => ['required', 'date'],
-            'keterangan'  => ['nullable', 'string', 'max:100'],
-        ]);
-
-        $laporan->update($validated);
+        $laporan->update($request->validate(self::RULES));
 
         return response()->json(['message' => 'Laporan keuangan berhasil diperbarui.', 'laporan' => $laporan]);
     }
