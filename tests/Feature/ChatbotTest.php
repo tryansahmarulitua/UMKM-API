@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Admin;
 use App\Models\Kategori;
 use App\Models\Produk;
+use App\Models\ProfilUMKM;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -33,12 +34,17 @@ class ChatbotTest extends TestCase
     public function test_prompt_treats_the_visitor_as_a_buyer_and_points_orders_to_whatsapp(): void
     {
         $this->gemini('Halo!');
+        $admin = Admin::create(['nama' => 'Owner', 'email' => 'owner@bunda.id', 'password' => 'rahasia123']);
+        ProfilUMKM::create(['idAdmin' => $admin->idAdmin, 'namaUMKM' => 'Bunda Riris', 'deskripsi' => '-', 'alamat' => 'Bekasi', 'noTelepon' => '081234500000']);
 
-        $this->postJson('/api/chat', ['message' => 'Halo'])->assertOk();
+        $this->postJson('/api/chat', ['message' => 'jual apa?'])->assertOk();
 
         $prompt = $this->prompt();
         $this->assertStringContainsString('calon pembeli', $prompt);
         $this->assertStringContainsString('"kami"', $prompt);
+        // "Bunda" in the business name made the model greet buyers as "Bunda".
+        $this->assertStringContainsString('Sapa pembeli dengan "Kak"', $prompt);
+        $this->assertStringContainsString('jangan memanggil pembeli "Bunda", "Bu", atau "Bunda Riris"', $prompt);
         $this->assertStringContainsString('tanpa format markdown', $prompt);
         $this->assertStringContainsString('Pesan lewat WhatsApp', $prompt);
     }
