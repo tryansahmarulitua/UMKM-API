@@ -78,7 +78,9 @@ return [
     |
     */
 
-    'locale' => env('APP_LOCALE', 'en'),
+    // Fixed to Indonesian rather than read from APP_LOCALE: the app is Indonesian-only, and existing
+    // .env files (copied from the old .env.example) still say APP_LOCALE=en.
+    'locale' => 'id',
 
     'fallback_locale' => env('APP_FALLBACK_LOCALE', 'en'),
 
