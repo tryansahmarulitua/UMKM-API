@@ -1,6 +1,6 @@
 ﻿# UMKM-API
 
-Backend aplikasi UMKM Jatisampurna berbasis **Laravel**. API ini menyediakan data dan logika bisnis yang dikonsumsi oleh frontend `UMKM-APP`.
+Backend website Menu Sedap ala Bunda Riris berbasis **Laravel**. API ini dipakai oleh dashboard admin `UMKM-APP` dan website publik `UMKM-LandingPages`.
 
 ---
 
@@ -8,12 +8,12 @@ Backend aplikasi UMKM Jatisampurna berbasis **Laravel**. API ini menyediakan dat
 
 | Fitur | Keterangan |
 |---|---|
-| Autentikasi | Registrasi, login, logout pengguna menggunakan Laravel Sanctum |
+| Autentikasi | Login dan logout admin dengan Laravel Sanctum. Tidak ada registrasi publik; akun admin dibuat lewat seeder |
 | Produk | CRUD data produk UMKM (nama, harga, foto, deskripsi, kategori) |
 | Kategori | Pengelolaan kategori produk |
 | Profil UMKM | Simpan dan tampilkan profil UMKM |
 | Laporan Keuangan | CRUD catatan laporan keuangan |
-| Keamanan | Endpoint dilindungi token Sanctum kecuali login/register |
+| Keamanan | Endpoint admin dilindungi token Sanctum. Login dikunci 15 menit setelah 5 kali gagal |
 
 ---
 
@@ -21,6 +21,15 @@ Backend aplikasi UMKM Jatisampurna berbasis **Laravel**. API ini menyediakan dat
 
 ```bash
 cd UMKM-API
+composer install
+cp .env.example .env
+php artisan key:generate
+```
+
+Isi `ADMIN_EMAIL` dan `ADMIN_PASSWORD` (minimal 8 karakter, huruf dan angka) di `.env`, lalu:
+
+```bash
+php artisan migrate --seed
 php artisan serve
 ```
 
@@ -34,8 +43,10 @@ Backend berjalan di `http://localhost:8000`.
 
 | Method | Endpoint | Fungsi |
 |---|---|---|
-| POST | `/api/auth/register` | Registrasi pengguna baru |
-| POST | `/api/auth/login` | Login dan mendapatkan token |
+| POST | `/api/auth/login` | Login admin dan mendapatkan token |
+| GET | `/api/public/produk` | Produk yang ditampilkan di katalog |
+| GET | `/api/public/profil` | Profil usaha |
+| POST | `/api/chat` | Chatbot (maks. 500 karakter, 30 pesan/menit per IP) |
 
 ### Terproteksi (memerlukan Bearer Token)
 
@@ -52,6 +63,14 @@ Backend berjalan di `http://localhost:8000`.
 
 ## Teknologi
 
-- **Laravel 11** — PHP Framework
+- **Laravel 12** — PHP Framework (PHP 8.4)
 - **Laravel Sanctum** — Token-based API authentication
-- **MySQL** — Database
+- **MySQL** — Database (SQLite untuk test)
+
+---
+
+## Test
+
+```bash
+php artisan test
+```

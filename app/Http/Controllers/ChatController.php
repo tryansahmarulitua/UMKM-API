@@ -14,13 +14,13 @@ class ChatController extends Controller
     public function __invoke(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'message' => ['required', 'string', 'max:1000'],
+            'message' => ['required', 'string', 'max:500'],
             'history' => ['sometimes', 'array', 'max:12'],
             'history.*.role' => ['required', 'in:user,model'],
             'history.*.text' => ['required', 'string', 'max:2000'],
         ]);
 
-        $profile = ProfilUMKM::query()->latest('idProfil')->first();
+        $profile = ProfilUMKM::latest('updated_at')->first();
         $products = Produk::with('kategori:idKategori,namaKategori')
             ->where('tampil', true)
             ->get(['idProduk', 'idKategori', 'namaProduk', 'deskripsi', 'harga']);
@@ -44,13 +44,15 @@ class ChatController extends Controller
                 'parts' => [['text' => $validated['message']]],
             ])->values()->all();
 
+        $businessName = $profile?->namaUMKM ?? config('app.name');
+
         try {
             $response = Http::timeout(30)
                 ->withHeaders(['x-goog-api-key' => config('services.gemini.key')])
-                ->post('https://generativelanguage.googleapis.com/v1beta/models/' . config('services.gemini.model', 'gemini-2.5-flash') . ':generateContent', [
+                ->post('https://generativelanguage.googleapis.com/v1beta/models/' . config('services.gemini.model') . ':generateContent', [
                     'systemInstruction' => [
                         'parts' => [[
-                            'text' => 'Kamu adalah asisten ramah untuk UMKM Jatisampurna. Jawab dalam bahasa Indonesia. Gunakan hanya data konteks berikut. Jika data tidak tersedia, katakan pengguna dapat menghubungi pemilik UMKM. Jangan mengarang harga, stok, alamat, kontak, atau kebijakan. Jawaban ringkas dan praktis. Konteks: ' . json_encode($context, JSON_UNESCAPED_UNICODE),
+                            'text' => "Kamu adalah asisten ramah untuk {$businessName}. " . 'Jawab dalam bahasa Indonesia. Gunakan hanya data konteks berikut. Jika data tidak tersedia, katakan pengguna dapat menghubungi pemilik UMKM. Jangan mengarang harga, stok, alamat, kontak, atau kebijakan. Jawaban ringkas dan praktis. Konteks: ' . json_encode($context, JSON_UNESCAPED_UNICODE),
                         ]],
                     ],
                     'contents' => $contents,

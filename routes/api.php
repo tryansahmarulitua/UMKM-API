@@ -14,11 +14,8 @@ use Illuminate\Support\Facades\Route;
 |--------------------------------------------------------------------------
 */
 
-// Public auth routes
-Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login',    [AuthController::class, 'login']);
-});
+// No public registration (PP §4.5): the admin account is created by the seeder during setup.
+Route::post('/auth/login', [AuthController::class, 'login']);
 
 // Public storefront routes
 Route::get('/public/produk', [ProdukController::class, 'publicIndex']);
