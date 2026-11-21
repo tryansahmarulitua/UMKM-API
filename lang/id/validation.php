@@ -1,0 +1,105 @@
+<?php
+
+/*
+ * Indonesian validation messages. The dashboard shows these to the admin as-is.
+ * Rules not listed here fall back to English (fallback_locale).
+ */
+return [
+    'accepted' => ':Attribute harus disetujui.',
+    'after' => ':Attribute harus tanggal setelah :date.',
+    'after_or_equal' => ':Attribute harus tanggal yang sama atau setelah :date.',
+    'alpha' => ':Attribute hanya boleh berisi huruf.',
+    'alpha_num' => ':Attribute hanya boleh berisi huruf dan angka.',
+    'array' => ':Attribute harus berupa daftar.',
+    'before' => ':Attribute harus tanggal sebelum :date.',
+    'before_or_equal' => ':Attribute harus tanggal yang sama atau sebelum :date.',
+    'between' => [
+        'array' => ':Attribute harus berisi :min sampai :max item.',
+        'file' => ':Attribute harus berukuran :min sampai :max kilobyte.',
+        'numeric' => ':Attribute harus di antara :min dan :max.',
+        'string' => ':Attribute harus :min sampai :max karakter.',
+    ],
+    'boolean' => ':Attribute harus bernilai benar atau salah.',
+    'confirmed' => 'Konfirmasi :attribute tidak cocok.',
+    'date' => ':Attribute bukan tanggal yang valid.',
+    'date_format' => ':Attribute harus berformat :format.',
+    'decimal' => ':Attribute harus memiliki :decimal angka di belakang koma.',
+    'digits' => ':Attribute harus :digits digit.',
+    'digits_between' => ':Attribute harus :min sampai :max digit.',
+    'dimensions' => 'Ukuran gambar :attribute tidak sesuai.',
+    'email' => ':Attribute harus berupa alamat email yang valid.',
+    'exists' => ':Attribute yang dipilih tidak ditemukan.',
+    'file' => ':Attribute harus berupa file.',
+    'filled' => ':Attribute wajib diisi.',
+    'image' => ':Attribute harus berupa gambar.',
+    'in' => ':Attribute yang dipilih tidak valid.',
+    'integer' => ':Attribute harus berupa bilangan bulat.',
+    'max' => [
+        'array' => ':Attribute maksimal berisi :max item.',
+        'file' => ':Attribute maksimal :max kilobyte.',
+        'numeric' => ':Attribute maksimal :max.',
+        'string' => ':Attribute maksimal :max karakter.',
+    ],
+    'mimes' => ':Attribute harus berupa file bertipe: :values.',
+    'min' => [
+        'array' => ':Attribute minimal berisi :min item.',
+        'file' => ':Attribute minimal :min kilobyte.',
+        'numeric' => ':Attribute minimal :min.',
+        'string' => ':Attribute minimal :min karakter.',
+    ],
+    'numeric' => ':Attribute harus berupa angka.',
+    'present' => ':Attribute wajib ada.',
+    'regex' => 'Format :attribute tidak valid.',
+    'required' => ':Attribute wajib diisi.',
+    'required_if' => ':Attribute wajib diisi bila :other adalah :value.',
+    'required_with' => ':Attribute wajib diisi bila :values diisi.',
+    'same' => ':Attribute dan :other harus sama.',
+    'size' => [
+        'array' => ':Attribute harus berisi :size item.',
+        'file' => ':Attribute harus berukuran :size kilobyte.',
+        'numeric' => ':Attribute harus bernilai :size.',
+        'string' => ':Attribute harus :size karakter.',
+    ],
+    'string' => ':Attribute harus berupa teks.',
+    'unique' => ':Attribute sudah dipakai.',
+    'uploaded' => ':Attribute gagal diunggah. Coba foto yang lebih kecil.',
+    'url' => ':Attribute harus berupa link yang valid.',
+
+    'custom' => [
+        'foto' => [
+            'max' => 'Ukuran foto maksimal 5 MB.',
+            'dimensions' => 'Resolusi foto maksimal 6000 × 6000 piksel.',
+            'image' => 'File harus berupa gambar (JPG, PNG, atau WebP).',
+        ],
+        'harga' => [
+            'decimal' => 'Harga maksimal 2 angka di belakang koma.',
+        ],
+        'jumlah' => [
+            'decimal' => 'Jumlah maksimal 2 angka di belakang koma.',
+        ],
+    ],
+
+    // Field names as the admin sees them on the dashboard forms.
+    'attributes' => [
+        'email' => 'email',
+        'password' => 'password',
+        'idKategori' => 'kategori',
+        'namaProduk' => 'nama produk',
+        'deskripsi' => 'deskripsi',
+        'harga' => 'harga',
+        'tampil' => 'status tampil',
+        'foto' => 'foto',
+        'namaKategori' => 'nama kategori',
+        'jenis' => 'jenis',
+        'namaSumber' => 'nama sumber',
+        'jumlah' => 'jumlah',
+        'tanggal' => 'tanggal',
+        'keterangan' => 'keterangan',
+        'namaUMKM' => 'nama usaha',
+        'alamat' => 'alamat',
+        'noTelepon' => 'nomor telepon',
+        'mediaSosial' => 'media sosial',
+        'message' => 'pesan',
+        'history' => 'riwayat chat',
+    ],
+];
