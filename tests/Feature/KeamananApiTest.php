@@ -155,6 +155,35 @@ class KeamananApiTest extends TestCase
         ])->assertJsonValidationErrors('keterangan');
     }
 
+    public function test_money_amounts_must_fit_the_column_and_have_at_most_2_decimals(): void
+    {
+        $kategori = Kategori::create(['namaKategori' => 'Abon']);
+        Sanctum::actingAs($this->admin());
+        $laporan = ['jenis' => 'Pemasukan', 'namaSumber' => 'Penjualan', 'tanggal' => '2026-11-20'];
+
+        // decimal(15,2) holds at most 9,999,999,999,999.99; larger values used to crash MySQL with a 500.
+        $this->postJson('/api/laporan-keuangan', $laporan + ['jumlah' => 10000000000000])->assertJsonValidationErrors('jumlah');
+        $this->postJson('/api/laporan-keuangan', $laporan + ['jumlah' => 15000.555])->assertJsonValidationErrors('jumlah');
+        // Sent as a string, like the dashboard form does; a JSON float this large loses precision.
+        $this->postJson('/api/laporan-keuangan', $laporan + ['jumlah' => '9999999999999.99'])->assertCreated();
+
+        $this->postJson('/api/produk', [
+            'idKategori' => $kategori->idKategori, 'namaProduk' => 'Abon', 'tampil' => 'Y', 'deskripsi' => 'Gurih', 'harga' => 15000.555,
+        ])->assertJsonValidationErrors('harga');
+    }
+
+    public function test_app_runs_on_jakarta_time_and_report_dates_are_not_shifted(): void
+    {
+        $this->assertSame('Asia/Jakarta', config('app.timezone'));
+
+        $owner = $this->admin();
+        Sanctum::actingAs($owner);
+        $this->laporan($owner);
+
+        // A UTC-serialised date would come out as 2026-11-19T17:00:00Z and show one day early in the dashboard.
+        $this->getJson('/api/laporan-keuangan')->assertOk()->assertJsonPath('0.tanggal', '2026-11-20');
+    }
+
     public function test_updating_profile_photo_keeps_exactly_one_file(): void
     {
         Storage::fake('public');

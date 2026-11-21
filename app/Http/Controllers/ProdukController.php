@@ -53,7 +53,7 @@ class ProdukController extends Controller
             'idKategori' => ['required', 'exists:tb_kategoriproduk,idKategori'],
             'namaProduk' => ['required', 'string', 'max:100'],
             'deskripsi'  => ['required', 'string', 'max:255'],
-            'harga'      => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'harga'      => ['required', 'numeric', 'min:0', 'max:999999.99', 'decimal:0,2'],
             'tampil'     => ['required', 'in:Y,N'],
             'foto'       => ['nullable', 'image', 'max:2048'],
         ]);
@@ -98,7 +98,7 @@ class ProdukController extends Controller
             'idKategori' => ['required', 'exists:tb_kategoriproduk,idKategori'],
             'namaProduk' => ['required', 'string', 'max:100'],
             'deskripsi'  => ['required', 'string', 'max:255'],
-            'harga'      => ['required', 'numeric', 'min:0', 'max:999999.99'],
+            'harga'      => ['required', 'numeric', 'min:0', 'max:999999.99', 'decimal:0,2'],
             'tampil'     => ['required', 'in:Y,N'],
             'foto'       => ['nullable', 'image', 'max:2048'],
         ]);

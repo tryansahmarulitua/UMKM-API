@@ -23,7 +23,7 @@ class LaporanKeuangan extends Model
 
     protected $casts = [
         'jumlah'   => 'decimal:2',
-        'tanggal'  => 'date',
+        'tanggal'  => 'date:Y-m-d', // plain date, so the Jakarta timezone cannot shift it a day back in JSON
     ];
 
     public function admin(): BelongsTo

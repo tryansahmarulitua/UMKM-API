@@ -30,7 +30,7 @@ class LaporanKeuanganController extends Controller
         $validated = $request->validate([
             'jenis'       => ['required', 'in:Pemasukan,Pengeluaran'],
             'namaSumber'  => ['required', 'string', 'max:100'],
-            'jumlah'      => ['required', 'numeric', 'min:0'],
+            'jumlah'      => ['required', 'numeric', 'min:0', 'max:9999999999999.99', 'decimal:0,2'], // decimal(15,2)
             'tanggal'     => ['required', 'date'],
             'keterangan'  => ['nullable', 'string', 'max:100'],
         ]);
@@ -50,7 +50,7 @@ class LaporanKeuanganController extends Controller
         $validated = $request->validate([
             'jenis'       => ['required', 'in:Pemasukan,Pengeluaran'],
             'namaSumber'  => ['required', 'string', 'max:100'],
-            'jumlah'      => ['required', 'numeric', 'min:0'],
+            'jumlah'      => ['required', 'numeric', 'min:0', 'max:9999999999999.99', 'decimal:0,2'], // decimal(15,2)
             'tanggal'     => ['required', 'date'],
             'keterangan'  => ['nullable', 'string', 'max:100'],
         ]);
