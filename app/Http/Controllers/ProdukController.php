@@ -10,11 +10,11 @@ use Illuminate\Support\Facades\Storage;
 
 class ProdukController extends Controller
 {
-    private const KATEGORI = 'kategori:idKategori,namaKategori';
+    private const RELASI = ['kategori:idKategori,namaKategori', 'rasa:idRasa,namaRasa'];
 
     public function index(): JsonResponse
     {
-        return response()->json(Produk::with(self::KATEGORI)->orderByDesc('created_at')->get());
+        return response()->json(Produk::with(self::RELASI)->orderByDesc('created_at')->get());
     }
 
     /**
@@ -22,14 +22,14 @@ class ProdukController extends Controller
      */
     public function publicIndex(): JsonResponse
     {
-        $produk = Produk::with(self::KATEGORI)->where('tampil', true)->orderByDesc('created_at')->get();
+        $produk = Produk::with(self::RELASI)->where('tampil', true)->orderByDesc('created_at')->get();
 
         return response()->json($produk->makeHidden('idAdmin'));
     }
 
     public function show(Produk $produk): JsonResponse
     {
-        return response()->json($produk->load(self::KATEGORI));
+        return response()->json($produk->load(self::RELASI));
     }
 
     public function store(Request $request): JsonResponse
@@ -39,10 +39,11 @@ class ProdukController extends Controller
         $data['foto'] = $request->hasFile('foto') ? FotoUploader::simpan($request->file('foto'), 'produk') : null;
 
         $produk = Produk::create($data);
+        $this->simpanRasa($request, $produk);
 
         return response()->json([
             'message' => 'Produk berhasil ditambahkan.',
-            'produk'  => $produk->load(self::KATEGORI),
+            'produk'  => $produk->load(self::RELASI),
         ], 201);
     }
 
@@ -59,10 +60,11 @@ class ProdukController extends Controller
         }
 
         $produk->update($data);
+        $this->simpanRasa($request, $produk);
 
         return response()->json([
             'message' => 'Produk berhasil diperbarui.',
-            'produk'  => $produk->fresh(self::KATEGORI),
+            'produk'  => $produk->fresh(self::RELASI),
         ]);
     }
 
@@ -86,9 +88,23 @@ class ProdukController extends Controller
             'harga'      => ['required', 'numeric', 'min:0', 'max:999999.99', 'decimal:0,2'],
             'tampil'     => ['required', 'in:Y,N'],
             'foto'       => FotoUploader::RULES,
+            'rasa'       => ['nullable', 'array'],
+            'rasa.*'     => ['integer', 'distinct', 'exists:tb_rasa,idRasa'],
         ]);
         $data['tampil'] = $data['tampil'] === 'Y';
+        unset($data['rasa']);
 
         return $data;
+    }
+
+    /**
+     * Flavour labels from the dashboard form. FormData cannot send an empty array, so unticking every
+     * label arrives as rasa="" (null); a request without the field leaves the labels unchanged.
+     */
+    private function simpanRasa(Request $request, Produk $produk): void
+    {
+        if ($request->exists('rasa')) {
+            $produk->rasa()->sync(array_filter((array) $request->input('rasa')));
+        }
     }
 }
