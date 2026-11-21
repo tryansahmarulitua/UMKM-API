@@ -50,7 +50,8 @@ return [
     |
     */
 
-    'expiration' => null,
+    // 7 days by default: one admin, often on a phone, so daily re-login would be a chore; never expiring is too risky.
+    'expiration' => (int) env('SANCTUM_EXPIRATION', 10080) ?: null,
 
     /*
     |--------------------------------------------------------------------------

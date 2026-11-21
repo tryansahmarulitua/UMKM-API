@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Produk;
+use App\Support\FotoUploader;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -33,7 +34,7 @@ class ProdukController extends Controller
     {
         $data = $this->validated($request);
         $data['idAdmin'] = $request->user()->getAuthIdentifier();
-        $data['foto'] = $request->hasFile('foto') ? $request->file('foto')->store('produk', 'public') : null;
+        $data['foto'] = $request->hasFile('foto') ? FotoUploader::simpan($request->file('foto'), 'produk') : null;
 
         $produk = Produk::create($data);
 
@@ -52,7 +53,7 @@ class ProdukController extends Controller
             if ($produk->foto) {
                 Storage::disk('public')->delete($produk->foto);
             }
-            $data['foto'] = $request->file('foto')->store('produk', 'public');
+            $data['foto'] = FotoUploader::simpan($request->file('foto'), 'produk');
         }
 
         $produk->update($data);
@@ -82,7 +83,7 @@ class ProdukController extends Controller
             'deskripsi'  => ['required', 'string', 'max:255'],
             'harga'      => ['required', 'numeric', 'min:0', 'max:999999.99', 'decimal:0,2'],
             'tampil'     => ['required', 'in:Y,N'],
-            'foto'       => ['nullable', 'image', 'max:2048'],
+            'foto'       => FotoUploader::RULES,
         ]);
         $data['tampil'] = $data['tampil'] === 'Y';
 

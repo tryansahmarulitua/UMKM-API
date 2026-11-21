@@ -35,6 +35,27 @@ php artisan serve
 
 Backend berjalan di `http://localhost:8000`.
 
+### Pengaturan penting di `.env`
+
+| Variabel | Default | Fungsi |
+|---|---|---|
+| `SANCTUM_EXPIRATION` | `10080` | Masa berlaku token login dalam menit (7 hari). Isi `0` untuk tanpa batas. |
+| `CHAT_DAILY_LIMIT` | `500` | Batas pesan chat per hari untuk semua pengunjung, supaya kuota Gemini tidak habis. |
+| `APP_TIMEZONE` | `Asia/Jakarta` | Zona waktu aplikasi. |
+
+### Foto produk dan profil
+
+- Foto disimpan langsung di `public/storage`, sehingga **tidak perlu `php artisan storage:link`**. InfinityFree tidak bisa membuat symlink.
+- Saat diunggah, foto otomatis diperkecil menjadi JPEG dengan sisi terpanjang 1200 px dan kualitas 80. Foto HP 3–5 MB menjadi sekitar 100–250 KB.
+- Batas upload 5 MB per foto. Kalau ekstensi PHP `exif` tersedia di server, foto tegak dari HP ikut diputar sesuai orientasinya.
+- Isi `public/storage` tidak masuk Git, jadi folder ini tidak boleh ditimpa saat deploy ulang.
+
+### Setelah deploy
+
+```bash
+php artisan migrate
+```
+
 ---
 
 ## Endpoint API

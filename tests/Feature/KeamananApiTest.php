@@ -218,6 +218,70 @@ class KeamananApiTest extends TestCase
         $this->assertSame($files[0], ProfilUMKM::first()->foto);
     }
 
+    public function test_photos_are_stored_in_public_storage_so_no_symlink_is_needed(): void
+    {
+        // InfinityFree cannot create the public/storage symlink that `php artisan storage:link` makes.
+        $this->assertSame(public_path('storage'), config('filesystems.disks.public.root'));
+        $this->assertSame([], config('filesystems.links'));
+    }
+
+    public function test_uploaded_photo_is_shrunk_to_a_1200px_jpeg(): void
+    {
+        Storage::fake('public');
+        Sanctum::actingAs($this->admin());
+        $kategori = Kategori::create(['namaKategori' => 'Abon']);
+
+        // A 4 MB phone photo used to be rejected by the old 2 MB limit.
+        $foto = UploadedFile::fake()->image('kamera.png', 3000, 2000)->size(4000);
+        $path = $this->post('/api/produk', [
+            'idKategori' => $kategori->idKategori, 'namaProduk' => 'Abon', 'deskripsi' => 'Gurih', 'harga' => 45000, 'tampil' => 'Y', 'foto' => $foto,
+        ])->assertCreated()->json('produk.foto');
+
+        $this->assertStringEndsWith('.jpg', $path);
+        [$width, $height, $type] = getimagesizefromstring(Storage::disk('public')->get($path));
+        $this->assertSame([1200, 800, IMAGETYPE_JPEG], [$width, $height, $type]);
+    }
+
+    public function test_upright_phone_photo_is_rotated_using_its_exif_orientation(): void
+    {
+        if (! function_exists('exif_read_data')) {
+            $this->markTestSkipped('The exif extension is not installed; photos are then stored without rotation.');
+        }
+        Storage::fake('public');
+        Sanctum::actingAs($this->admin());
+
+        // Phones save portrait shots as landscape pixels plus EXIF Orientation 6 ("rotate 90° clockwise").
+        $image = imagecreatetruecolor(400, 200);
+        ob_start();
+        imagejpeg($image);
+        $jpeg = ob_get_clean();
+        $tiff = "II*\0" . pack('V', 8) . pack('v', 1) . pack('vvVvv', 0x0112, 3, 1, 6, 0) . pack('V', 0);
+        $app1 = "\xFF\xE1" . pack('n', strlen("Exif\0\0" . $tiff) + 2) . "Exif\0\0" . $tiff;
+        $file = tempnam(sys_get_temp_dir(), 'exif') . '.jpg';
+        file_put_contents($file, substr($jpeg, 0, 2) . $app1 . substr($jpeg, 2));
+
+        $path = $this->post('/api/profil', [
+            'namaUMKM' => 'Bunda Riris', 'deskripsi' => 'Camilan', 'alamat' => 'Bekasi', 'noTelepon' => '081234500000',
+            'foto' => new UploadedFile($file, 'hp.jpg', 'image/jpeg', null, true),
+        ])->assertCreated()->json('profil.foto');
+
+        [$width, $height] = getimagesizefromstring(Storage::disk('public')->get($path));
+        $this->assertSame([200, 400], [$width, $height]);
+    }
+
+    public function test_login_token_expires_after_7_days(): void
+    {
+        // Token made directly: going through /login would also sign in the session guard inside this test process.
+        $token = $this->admin()->createToken('auth_token')->plainTextToken;
+
+        $this->travelTo(now()->addDays(7)->subMinute());
+        $this->withToken($token)->getJson('/api/auth/me')->assertOk();
+
+        $this->travel(2)->minutes();
+        $this->app['auth']->forgetGuards();
+        $this->withToken($token)->getJson('/api/auth/me')->assertUnauthorized();
+    }
+
     public function test_login_history_has_its_own_table_so_session_cleanup_cannot_erase_it(): void
     {
         $this->admin();
