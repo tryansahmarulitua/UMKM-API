@@ -147,6 +147,12 @@ class KeamananApiTest extends TestCase
         $this->assertDatabaseHas('tb_laporankeuangan', ['idLK' => $laporan->idLK, 'namaSumber' => $laporan->namaSumber]);
     }
 
+    public function test_api_has_only_a_health_check_and_no_web_pages(): void
+    {
+        $this->get('/up')->assertOk();
+        $this->getJson('/')->assertNotFound();
+    }
+
     public function test_public_endpoints_do_not_expose_internal_admin_ids(): void
     {
         $admin = $this->admin();

@@ -62,6 +62,8 @@ Bahasa aplikasi ditetapkan ke bahasa Indonesia di `config/app.php`, jadi pesan v
 
 ## Endpoint API
 
+Repo ini hanya berisi API, tanpa halaman web. `GET /up` dipakai sebagai health check (status 200 kalau aplikasi hidup); alamat `/` sengaja mengembalikan 404.
+
 ### Publik (tanpa token)
 
 | Method | Endpoint | Fungsi |
@@ -114,6 +116,7 @@ Langkah ini ditulis untuk hosting tanpa terminal (misalnya InfinityFree). Kalau 
 3. **Upload kode dari `main`:** `app/`, `bootstrap/app.php`, `config/`, `database/`, `lang/`, dan `routes/`. `vendor/` hanya perlu diupload ulang kalau `composer.lock` berubah. Folder `.github/` tidak perlu diupload.
    - **Jangan hapus atau timpa `public/storage`.**
    - Kalau ada file `bootstrap/cache/config.php` di server, hapus supaya konfigurasi baru terbaca.
+   - File template Laravel yang sudah dihapus dari repo (`routes/web.php`, `routes/console.php`, `resources/`, `package.json`, `vite.config.js`) boleh ikut dihapus di server. Kalau tidak dihapus pun aman, karena tidak lagi dibaca aplikasi.
 4. **Periksa `.env` server:** `APP_ENV=production`, `APP_DEBUG=false`, `APP_NAME="Menu Sedap ala Bunda Riris"`, `APP_URL` berisi domain API, `DB_CONNECTION=mysql` beserta `DB_*`, dan `GEMINI_API_KEY`. Variabel lain di tabel di atas sudah punya default yang sesuai.
 5. **Uji setelah deploy:** login di dashboard dan cek Riwayat Login, upload foto produk, coba chatbot di landing page, lalu simpan profil dengan data tidak valid dan pastikan pesan error tampil dalam bahasa Indonesia.
 
