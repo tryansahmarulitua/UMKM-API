@@ -14,6 +14,9 @@ Backend website Menu Sedap ala Bunda Riris berbasis **Laravel**. API ini dipakai
 | Label Rasa | Manis, Asin, Gurih, Pedas, dan Renyah tersedia sejak awal; pemilik bisa menambah, mengganti, atau menghapus label |
 | Profil UMKM | Simpan dan tampilkan profil UMKM |
 | Laporan Keuangan | CRUD catatan modal, pemasukan, dan pengeluaran, serta ringkasan harian, mingguan, dan bulanan. Modal menambah saldo tapi tidak dihitung sebagai laba |
+| Pemesanan | Checkout tanpa akun (nama, nomor WhatsApp, ambil sendiri/dikirim). Harga, total, dan nomor pesanan (`BR-YYYYMMDD-NNNN`) dihitung server |
+| Pesanan | Daftar dan detail pesanan untuk admin. Status: Menunggu Pembayaran → Lunas → Selesai, atau Menunggu Pembayaran → Dibatalkan. Belum Lunas dalam 24 jam otomatis Dibatalkan saat data pesanan dibuka. Lunas otomatis dicatat sebagai pemasukan tepat satu kali |
+| Pengaturan | Rekening tujuan transfer dan nomor WhatsApp pemesanan, tampil ke pembeli setelah checkout |
 | Riwayat Login | Catatan waktu, IP, dan perangkat setiap login admin |
 | Chatbot | Asisten produk untuk pengunjung, memakai Google Gemini dan data produk serta profil. Merekomendasikan produk sesuai label rasa dalam bentuk kartu produk |
 | Keamanan | Endpoint admin dilindungi token Sanctum. Login dikunci 15 menit setelah 5 kali gagal |
@@ -72,6 +75,8 @@ Repo ini hanya berisi API, tanpa halaman web. `GET /up` dipakai sebagai health c
 | POST | `/api/auth/login` | Login admin dan mendapatkan token |
 | GET | `/api/public/produk` | Produk yang ditampilkan di katalog, beserta kategori dan label rasanya |
 | GET | `/api/public/profil` | Profil usaha |
+| GET | `/api/public/pengaturan` | Rekening tujuan transfer dan nomor WhatsApp pemesanan (kalau kosong, nomor dari profil) |
+| POST | `/api/pesanan` | Checkout: `namaPelanggan`, `noWhatsApp` (nomor HP Indonesia), `pengiriman` (`Ambil sendiri`/`Dikirim`), `items[]` berisi `idProduk` dan `jumlah` (1–50, maks. 20 produk). Harga dari browser diabaikan |
 | POST | `/api/chat` | Chatbot: `message` maks. 500 karakter, `history` maks. 6 pesan. Per IP: jeda 3 detik antarpesan dan 20 pertanyaan per jam; untuk semua pengunjung: `CHAT_DAILY_LIMIT` per hari |
 
 ### Terproteksi (memerlukan Bearer Token)
@@ -85,6 +90,10 @@ Repo ini hanya berisi API, tanpa halaman web. `GET /up` dipakai sebagai health c
 | GET/POST/PUT/DELETE | `/api/kategori` | Kelola kategori |
 | GET/POST/PUT/DELETE | `/api/rasa` | Kelola label rasa. Menghapus label hanya melepasnya dari produk |
 | GET/POST | `/api/profil` | Profil UMKM |
+| GET | `/api/pesanan` | Daftar pesanan, terbaru di atas; filter `?status=` |
+| GET | `/api/pesanan/{id}` | Detail pesanan |
+| PATCH | `/api/pesanan/{id}/status` | Ubah status (`status`). Perubahan di luar alur yang sah ditolak `422` |
+| GET/PUT | `/api/pengaturan` | Rekening dan nomor WhatsApp pemesanan |
 | GET/POST/PUT/DELETE | `/api/laporan-keuangan` | Laporan keuangan. `jenis`: `Pemasukan`, `Pengeluaran`, atau `Modal` |
 | GET | `/api/laporan-keuangan/ringkasan` | Ringkasan: `periode=bulanan&tahun=2026` (per bulan), atau `periode=mingguan` / `periode=harian` dengan `bulan=2026-11`. Tanpa parameter: bulanan tahun ini |
 
@@ -92,6 +101,7 @@ Catatan:
 - **Edit produk yang menyertakan foto** dikirim sebagai `POST /api/produk/{id}?_method=PUT` dengan `multipart/form-data`, karena PHP tidak membaca upload file lewat `PUT`.
 - **Label rasa produk** dikirim sebagai `rasa[]` berisi `idRasa` saat menyimpan produk. Untuk melepas semua label, kirim `rasa` kosong; kalau `rasa` tidak dikirim sama sekali, label produk tidak berubah.
 - **Jawaban chatbot** berbentuk `{ "answer": "...", "produk": [...] }`. Gemini hanya memilih ID produk; server membuang ID yang tidak ada atau produk yang disembunyikan, lalu mengisi nama, harga, foto, dan rasa dari database (maksimal 4 kartu).
+- **Pemasukan otomatis dari pesanan** punya `idPesanan` dan tidak bisa diubah atau dihapus lewat `/api/laporan-keuangan` (`422`). Nilainya total pesanan, tanpa ongkos kirim.
 - **Ringkasan keuangan** berisi `saldoAwal` (saldo sebelum periode), `rincian` (satu baris per hari, minggu, atau bulan yang ada catatannya, dengan `mulai`, `sampai`, `modal`, `pemasukan`, `pengeluaran`, `laba`, dan `saldoAkhir`), serta `total`. Minggu dihitung Senin–Minggu dan dipotong di batas bulan, sehingga jumlah semua minggu sama dengan total bulannya. Laba = pemasukan − pengeluaran; saldo = modal + pemasukan − pengeluaran.
 - Error validasi dikembalikan dengan status `422` dalam format `{ "message": "...", "errors": { "field": ["..."] } }`, dan pesannya berbahasa Indonesia.
 
@@ -155,6 +165,56 @@ Langkah ini ditulis untuk hosting tanpa terminal (misalnya InfinityFree). Kalau 
    SELECT '2026_11_22_000001_add_modal_to_jenis_laporan', COALESCE(MAX(batch), 0) + 1 FROM migrations;
    ```
 
+   **d. Pemesanan online (`tb_pengaturan`, `tb_pesanan`, `tb_detail_pesanan`, dan kolom `idPesanan` di laporan)**: checkout, halaman Pesanan, dan Pengaturan membaca tabel ini; tanpa kolom `idPesanan`, halaman Laporan Keuangan gagal dimuat.
+
+   ```sql
+   CREATE TABLE tb_pengaturan (
+     idPengaturan BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+     namaBank VARCHAR(50) NULL,
+     nomorRekening VARCHAR(30) NULL,
+     atasNama VARCHAR(100) NULL,
+     nomorWhatsApp VARCHAR(15) NULL,
+     created_at TIMESTAMP NULL,
+     updated_at TIMESTAMP NULL
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+   CREATE TABLE tb_pesanan (
+     idPesanan BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+     nomorPesanan VARCHAR(20) NOT NULL UNIQUE,
+     namaPelanggan VARCHAR(100) NOT NULL,
+     noWhatsApp VARCHAR(15) NOT NULL,
+     pengiriman ENUM('Ambil sendiri', 'Dikirim') NOT NULL,
+     total DECIMAL(15,2) NOT NULL,
+     status ENUM('Menunggu Pembayaran', 'Lunas', 'Selesai', 'Dibatalkan') NOT NULL DEFAULT 'Menunggu Pembayaran',
+     tanggalLunas TIMESTAMP NULL,
+     created_at TIMESTAMP NULL,
+     updated_at TIMESTAMP NULL,
+     INDEX tb_pesanan_status_created_at_index (status, created_at)
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+   CREATE TABLE tb_detail_pesanan (
+     idDetail BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+     idPesanan BIGINT UNSIGNED NOT NULL,
+     idProduk BIGINT UNSIGNED NULL,
+     namaProduk VARCHAR(100) NOT NULL,
+     harga DECIMAL(15,2) NOT NULL,
+     jumlah SMALLINT UNSIGNED NOT NULL,
+     subtotal DECIMAL(15,2) NOT NULL,
+     CONSTRAINT tb_detail_pesanan_idpesanan_foreign FOREIGN KEY (idPesanan) REFERENCES tb_pesanan(idPesanan) ON DELETE CASCADE,
+     CONSTRAINT tb_detail_pesanan_idproduk_foreign FOREIGN KEY (idProduk) REFERENCES tb_produk(idProduk) ON DELETE SET NULL
+   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+   ALTER TABLE tb_laporankeuangan
+     ADD COLUMN idPesanan BIGINT UNSIGNED NULL AFTER idAdmin,
+     ADD UNIQUE INDEX tb_laporankeuangan_idpesanan_unique (idPesanan),
+     ADD CONSTRAINT tb_laporankeuangan_idpesanan_foreign FOREIGN KEY (idPesanan) REFERENCES tb_pesanan(idPesanan);
+
+   INSERT INTO migrations (migration, batch)
+   SELECT '2026_11_22_000002_create_pesanan_tables', COALESCE(MAX(batch), 0) + 1 FROM migrations;
+   ```
+
+   Setelah deploy, isi rekening dan nomor WhatsApp pemesanan di menu **Pengaturan** dashboard.
+
    Sebelumnya form dashboard memakai label "Pemasukan Modal", jadi modal lama mungkin tercatat sebagai Pemasukan. Setelah deploy, cek catatan lama dan ubah jenisnya menjadi Modal supaya laba tidak terlihat lebih besar.
 
 3. **Upload kode dari `main`:** `app/`, `bootstrap/app.php`, `config/`, `database/`, `lang/`, dan `routes/`. `vendor/` hanya perlu diupload ulang kalau `composer.lock` berubah. Folder `.github/` tidak perlu diupload.
@@ -162,7 +222,7 @@ Langkah ini ditulis untuk hosting tanpa terminal (misalnya InfinityFree). Kalau 
    - Kalau ada file `bootstrap/cache/config.php` di server, hapus supaya konfigurasi baru terbaca.
    - File template Laravel yang sudah dihapus dari repo (`routes/web.php`, `routes/console.php`, `resources/`, `package.json`, `vite.config.js`) boleh ikut dihapus di server. Kalau tidak dihapus pun aman, karena tidak lagi dibaca aplikasi.
 4. **Periksa `.env` server:** `APP_ENV=production`, `APP_DEBUG=false`, `APP_NAME="Menu Sedap ala Bunda Riris"`, `APP_URL` berisi domain API, `DB_CONNECTION=mysql` beserta `DB_*`, dan `GEMINI_API_KEY`. Variabel lain di tabel di atas sudah punya default yang sesuai.
-5. **Uji setelah deploy:** login di dashboard dan cek Riwayat Login, upload foto produk, beri label rasa pada beberapa produk lalu tanya chatbot "ada yang manis?" dan pastikan kartu produknya muncul, catat satu Modal dan cek ringkasan harian, mingguan, dan bulanan, lalu simpan profil dengan data tidak valid dan pastikan pesan error tampil dalam bahasa Indonesia.
+5. **Uji setelah deploy:** login di dashboard dan cek Riwayat Login, upload foto produk, beri label rasa pada beberapa produk lalu tanya chatbot "ada yang manis?" dan pastikan kartu produknya muncul, catat satu Modal dan cek ringkasan harian, mingguan, dan bulanan, isi Pengaturan lalu buat satu pesanan dari landing page dan tandai Lunas (pastikan pemasukannya muncul satu kali), lalu simpan profil dengan data tidak valid dan pastikan pesan error tampil dalam bahasa Indonesia.
 
 Domain frontend yang boleh memanggil API diatur di `config/cors.php`. Kalau domain Vercel berubah, tambahkan di `allowed_origins`.
 

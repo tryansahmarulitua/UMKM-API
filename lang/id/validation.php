@@ -77,6 +77,28 @@ return [
         'jumlah' => [
             'decimal' => 'Jumlah maksimal 2 angka di belakang koma.',
         ],
+        'noWhatsApp' => [
+            'regex' => 'Nomor WhatsApp tidak valid. Contoh: 081234567890.',
+        ],
+        'nomorWhatsApp' => [
+            'regex' => 'Nomor WhatsApp tidak valid. Contoh: 081234567890.',
+        ],
+        'nomorRekening' => [
+            'regex' => 'Nomor rekening hanya boleh berisi angka, spasi, atau tanda -.',
+        ],
+        'items' => [
+            'required' => 'Keranjang masih kosong.',
+            'min' => 'Keranjang masih kosong.',
+            'max' => 'Maksimal :max jenis produk per pesanan.',
+        ],
+        'items.*.jumlah' => [
+            'between' => 'Jumlah tiap produk 1 sampai 50.',
+            'integer' => 'Jumlah tiap produk harus bilangan bulat.',
+            'required' => 'Jumlah tiap produk wajib diisi.',
+        ],
+        'items.*.idProduk' => [
+            'distinct' => 'Produk yang sama tercantum dua kali di keranjang.',
+        ],
     ],
 
     // Field names as the admin sees them on the dashboard forms.
@@ -95,6 +117,14 @@ return [
         'rasa.*' => 'rasa',
         'jenis' => 'jenis',
         'periode' => 'periode',
+        'namaPelanggan' => 'nama',
+        'noWhatsApp' => 'nomor WhatsApp',
+        'pengiriman' => 'pilihan pengiriman',
+        'status' => 'status',
+        'namaBank' => 'nama bank',
+        'nomorRekening' => 'nomor rekening',
+        'atasNama' => 'atas nama',
+        'nomorWhatsApp' => 'nomor WhatsApp',
         'tahun' => 'tahun',
         'bulan' => 'bulan',
         'namaSumber' => 'nama sumber',
