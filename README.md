@@ -37,6 +37,8 @@ php artisan serve
 
 Backend berjalan di `http://localhost:8000`. Di laptop, database memakai SQLite; kalau ditanya apakah file `database/database.sqlite` perlu dibuat, jawab `yes`.
 
+Sistem ini dirancang untuk **satu akun admin**. Untuk mengganti email atau password admin, ubah `ADMIN_EMAIL` atau `ADMIN_PASSWORD` di `.env`, lalu jalankan `php artisan db:seed`. Seeder memperbarui admin yang sudah ada dan tidak membuat akun kedua, sehingga produk, laporan, dan profil tetap utuh. Semua perangkat yang sedang login akan otomatis keluar.
+
 ### Pengaturan penting di `.env`
 
 | Variabel | Default | Fungsi |
