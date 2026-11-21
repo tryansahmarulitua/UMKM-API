@@ -15,7 +15,7 @@ class ProfilUMKMController extends Controller
      */
     public function publicShow(): JsonResponse
     {
-        return response()->json(ProfilUMKM::latest('updated_at')->first());
+        return response()->json(ProfilUMKM::latest('updated_at')->first()?->makeHidden('idAdmin'));
     }
 
     public function show(Request $request): JsonResponse

@@ -65,6 +65,43 @@ class KeamananApiTest extends TestCase
         $this->postJson('/api/auth/login', ['email' => 'owner@bunda.id', 'password' => 'rahasia123'])->assertOk();
     }
 
+    public function test_changing_admin_email_in_env_updates_the_one_admin_instead_of_adding_a_second(): void
+    {
+        // A second admin would share products but not reports, and could replace the public profile.
+        config(['admin.email' => 'owner@bunda.id', 'admin.password' => 'rahasia123']);
+        $this->seed();
+        $admin = Admin::first();
+        $laporan = $this->laporan($admin);
+        $oldToken = $admin->createToken('auth_token')->plainTextToken;
+
+        config(['admin.email' => 'baru@bunda.id', 'admin.password' => 'rahasiaBaru456', 'admin.name' => 'Bunda']);
+        $this->seed();
+
+        $this->assertSame(1, Admin::count());
+        $this->assertSame($admin->idAdmin, Admin::first()->idAdmin);
+        $this->assertSame('Bunda', Admin::first()->nama);
+        $this->assertDatabaseHas('tb_laporankeuangan', ['idLK' => $laporan->idLK, 'idAdmin' => $admin->idAdmin]);
+        $this->postJson('/api/auth/login', ['email' => 'owner@bunda.id', 'password' => 'rahasia123'])->assertUnprocessable();
+
+        // Old sessions end when the credentials change.
+        $this->app['auth']->forgetGuards();
+        $this->withToken($oldToken)->getJson('/api/auth/me')->assertUnauthorized();
+
+        $this->app['auth']->forgetGuards();
+        $this->withHeaders(['Authorization' => ''])->postJson('/api/auth/login', ['email' => 'baru@bunda.id', 'password' => 'rahasiaBaru456'])->assertOk();
+    }
+
+    public function test_reseeding_with_unchanged_credentials_keeps_existing_sessions(): void
+    {
+        config(['admin.email' => 'owner@bunda.id', 'admin.password' => 'rahasia123']);
+        $this->seed();
+        $token = Admin::first()->createToken('auth_token')->plainTextToken;
+
+        $this->seed();
+
+        $this->withToken($token)->getJson('/api/auth/me')->assertOk();
+    }
+
     public function test_login_is_locked_for_15_minutes_after_5_failed_attempts(): void
     {
         $this->admin();
@@ -100,9 +137,25 @@ class KeamananApiTest extends TestCase
         $laporan = $this->laporan($this->admin());
         Sanctum::actingAs($this->admin('lain@bunda.id'));
 
-        $this->getJson("/api/laporan-keuangan/{$laporan->idLK}")->assertForbidden();
-        $this->deleteJson("/api/laporan-keuangan/{$laporan->idLK}")->assertForbidden();
-        $this->assertDatabaseHas('tb_laporankeuangan', ['idLK' => $laporan->idLK]);
+        // 404, the same as an ID that does not exist, so guessing IDs cannot reveal another admin's reports.
+        $missing = $this->getJson('/api/laporan-keuangan/999999')->assertNotFound()->json('message');
+        $this->getJson("/api/laporan-keuangan/{$laporan->idLK}")->assertNotFound()->assertJsonPath('message', $missing);
+        $this->putJson("/api/laporan-keuangan/{$laporan->idLK}", [
+            'jenis' => 'Pengeluaran', 'namaSumber' => 'Diubah', 'jumlah' => 1, 'tanggal' => '2026-11-20',
+        ])->assertNotFound();
+        $this->deleteJson("/api/laporan-keuangan/{$laporan->idLK}")->assertNotFound();
+        $this->assertDatabaseHas('tb_laporankeuangan', ['idLK' => $laporan->idLK, 'namaSumber' => $laporan->namaSumber]);
+    }
+
+    public function test_public_endpoints_do_not_expose_internal_admin_ids(): void
+    {
+        $admin = $this->admin();
+        $kategori = Kategori::create(['namaKategori' => 'Abon']);
+        Produk::create(['idAdmin' => $admin->idAdmin, 'idKategori' => $kategori->idKategori, 'namaProduk' => 'Abon', 'deskripsi' => '-', 'harga' => 1000, 'tampil' => true]);
+        ProfilUMKM::create(['idAdmin' => $admin->idAdmin, 'namaUMKM' => 'Bunda', 'deskripsi' => '-', 'alamat' => 'Bekasi', 'noTelepon' => '081234500000']);
+
+        $this->getJson('/api/public/produk')->assertOk()->assertJsonMissingPath('0.idAdmin')->assertJsonPath('0.namaProduk', 'Abon');
+        $this->getJson('/api/public/profil')->assertOk()->assertJsonMissingPath('idAdmin')->assertJsonPath('namaUMKM', 'Bunda');
     }
 
     public function test_owner_can_still_read_and_delete_own_financial_report(): void

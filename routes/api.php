@@ -34,5 +34,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/profil', [ProfilUMKMController::class, 'show']);
     Route::post('/profil', [ProfilUMKMController::class, 'store']);
     Route::apiResource('laporan-keuangan', LaporanKeuanganController::class)
-        ->parameters(['laporan-keuangan' => 'laporan']);
+        ->parameters(['laporan-keuangan' => 'laporan'])
+        ->missing(fn () => LaporanKeuanganController::tidakDitemukan());
 });

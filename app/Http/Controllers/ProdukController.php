@@ -22,7 +22,9 @@ class ProdukController extends Controller
      */
     public function publicIndex(): JsonResponse
     {
-        return response()->json(Produk::with(self::KATEGORI)->where('tampil', true)->orderByDesc('created_at')->get());
+        $produk = Produk::with(self::KATEGORI)->where('tampil', true)->orderByDesc('created_at')->get();
+
+        return response()->json($produk->makeHidden('idAdmin'));
     }
 
     public function show(Produk $produk): JsonResponse

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\LaporanKeuangan;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 
 class LaporanKeuanganController extends Controller
@@ -62,8 +63,16 @@ class LaporanKeuanganController extends Controller
         return response()->json(['message' => 'Laporan keuangan berhasil dihapus.']);
     }
 
+    /** Another admin's report answers exactly like a missing one, so guessing IDs reveals nothing. */
     private function ensureOwner(Request $request, LaporanKeuangan $laporan): void
     {
-        abort_unless($laporan->getAttribute('idAdmin') == $request->user()->getAuthIdentifier(), 403, 'Laporan ini bukan milik akun Anda.');
+        if ($laporan->getAttribute('idAdmin') != $request->user()->getAuthIdentifier()) {
+            throw new HttpResponseException(self::tidakDitemukan());
+        }
+    }
+
+    public static function tidakDitemukan(): JsonResponse
+    {
+        return response()->json(['message' => 'Laporan tidak ditemukan.'], 404);
     }
 }
