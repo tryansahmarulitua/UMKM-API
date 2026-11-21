@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\UseCloudflareClientIp;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,6 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->prepend(UseCloudflareClientIp::class);
+
         // The API is served through Cloudflare, so REMOTE_ADDR is a Cloudflare server. Trust X-Forwarded-For
         // only from Cloudflare's published ranges (https://www.cloudflare.com/ips/) so rate limits and login
         // lockouts see the visitor's real IP, and a header typed by the visitor cannot fake one.
