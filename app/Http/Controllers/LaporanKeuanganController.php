@@ -49,6 +49,7 @@ class LaporanKeuanganController extends Controller
     public function update(Request $request, LaporanKeuangan $laporan): JsonResponse
     {
         $this->ensureOwner($request, $laporan);
+        $this->ensureManual($laporan);
 
         $laporan->update($request->validate(self::RULES));
 
@@ -58,6 +59,7 @@ class LaporanKeuanganController extends Controller
     public function destroy(Request $request, LaporanKeuangan $laporan): JsonResponse
     {
         $this->ensureOwner($request, $laporan);
+        $this->ensureManual($laporan);
         $laporan->delete();
 
         return response()->json(['message' => 'Laporan keuangan berhasil dihapus.']);
@@ -68,6 +70,16 @@ class LaporanKeuanganController extends Controller
     {
         if ($laporan->getAttribute('idAdmin') != $request->user()->getAuthIdentifier()) {
             throw new HttpResponseException(self::tidakDitemukan());
+        }
+    }
+
+    /** Income recorded from a paid order is locked, so the books always match the orders. */
+    private function ensureManual(LaporanKeuangan $laporan): void
+    {
+        if ($laporan->idPesanan !== null) {
+            throw new HttpResponseException(response()->json(
+                ['message' => 'Catatan ini dibuat otomatis dari pesanan, jadi tidak bisa diubah atau dihapus.'], 422,
+            ));
         }
     }
 
