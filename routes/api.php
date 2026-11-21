@@ -5,6 +5,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ProdukController;
 use App\Http\Controllers\KategoriController;
 use App\Http\Controllers\RasaController;
+use App\Http\Controllers\RingkasanKeuanganController;
 use App\Http\Controllers\ProfilUMKMController;
 use App\Http\Controllers\LaporanKeuanganController;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +36,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('rasa', RasaController::class, ['only' => ['index', 'store', 'update', 'destroy']]);
     Route::get('/profil', [ProfilUMKMController::class, 'show']);
     Route::post('/profil', [ProfilUMKMController::class, 'store']);
+    // Before the resource, so "ringkasan" is not read as a report ID.
+    Route::get('/laporan-keuangan/ringkasan', RingkasanKeuanganController::class);
     Route::apiResource('laporan-keuangan', LaporanKeuanganController::class)
         ->parameters(['laporan-keuangan' => 'laporan'])
         ->missing(fn () => LaporanKeuanganController::tidakDitemukan());

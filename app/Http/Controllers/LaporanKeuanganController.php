@@ -10,7 +10,7 @@ use Illuminate\Http\Request;
 class LaporanKeuanganController extends Controller
 {
     private const RULES = [
-        'jenis'       => ['required', 'in:Pemasukan,Pengeluaran'],
+        'jenis'       => ['required', 'in:Pemasukan,Pengeluaran,Modal'],
         'namaSumber'  => ['required', 'string', 'max:100'],
         'jumlah'      => ['required', 'numeric', 'min:0', 'max:9999999999999.99', 'decimal:0,2'], // decimal(15,2)
         'tanggal'     => ['required', 'date'],
