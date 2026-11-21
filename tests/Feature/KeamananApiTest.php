@@ -184,6 +184,25 @@ class KeamananApiTest extends TestCase
         $this->getJson('/api/laporan-keuangan')->assertOk()->assertJsonPath('0.tanggal', '2026-11-20');
     }
 
+    public function test_editing_a_product_keeps_its_photo_unless_a_new_one_is_uploaded(): void
+    {
+        Storage::fake('public');
+        $kategori = Kategori::create(['namaKategori' => 'Abon']);
+        Sanctum::actingAs($this->admin());
+        $produk = ['idKategori' => $kategori->idKategori, 'namaProduk' => 'Abon', 'deskripsi' => 'Gurih', 'harga' => 45000, 'tampil' => 'Y'];
+
+        $id = $this->post('/api/produk', $produk + ['foto' => UploadedFile::fake()->image('a.jpg')])->assertCreated()->json('produk.idProduk');
+        $foto = Produk::find($id)->foto;
+
+        $this->put("/api/produk/{$id}", ['harga' => 50000] + $produk)->assertOk()->assertJsonPath('produk.foto', $foto);
+
+        $this->put("/api/produk/{$id}", $produk + ['foto' => UploadedFile::fake()->image('b.jpg')])->assertOk();
+        $files = Storage::disk('public')->files('produk');
+        $this->assertCount(1, $files);
+        $this->assertNotSame($foto, $files[0]);
+        $this->assertSame($files[0], Produk::find($id)->foto);
+    }
+
     public function test_updating_profile_photo_keeps_exactly_one_file(): void
     {
         Storage::fake('public');

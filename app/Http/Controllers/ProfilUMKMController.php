@@ -9,19 +9,17 @@ use Illuminate\Support\Facades\Storage;
 
 class ProfilUMKMController extends Controller
 {
-    /**     * Get public UMKM profile.
+    /**
+     * Profile shown on the public landing page.
      */
     public function publicShow(): JsonResponse
     {
-        $profil = ProfilUMKM::latest('updated_at')->first();
-        return response()->json($profil);
+        return response()->json(ProfilUMKM::latest('updated_at')->first());
     }
 
-    /**     * Get profil UMKM untuk admin yang login
-     */
-    public function show(): JsonResponse
+    public function show(Request $request): JsonResponse
     {
-        $profil = ProfilUMKM::where('idAdmin', auth()->id())->first();
+        $profil = ProfilUMKM::where('idAdmin', $request->user()->getAuthIdentifier())->first();
 
         if (!$profil) {
             return response()->json(['message' => 'Profil belum dibuat.', 'profil' => null], 404);
@@ -31,7 +29,7 @@ class ProfilUMKMController extends Controller
     }
 
     /**
-     * Simpan atau update profil UMKM
+     * Create the admin's profile, or update it when it already exists.
      */
     public function store(Request $request): JsonResponse
     {
@@ -48,39 +46,22 @@ class ProfilUMKMController extends Controller
             'mediaSosial.url' => 'Media sosial harus berupa link lengkap, contoh https://instagram.com/namausaha.',
         ]);
 
-        $profil = ProfilUMKM::where('idAdmin', auth()->id())->first();
+        $profil = ProfilUMKM::firstOrNew(['idAdmin' => $request->user()->getAuthIdentifier()]);
+        $isNew = ! $profil->exists;
+        $data = collect($validated)->except('foto')->all();
 
-        if ($profil) {
-            $updateData = collect($validated)->except('foto')->toArray();
-            if ($request->hasFile('foto')) {
-                if ($profil->foto) {
-                    Storage::disk('public')->delete($profil->foto);
-                }
-                $updateData['foto'] = $request->file('foto')->store('profil', 'public');
-            }
-
-            $profil->update($updateData);
-
-            return response()->json(['message' => 'Profil berhasil diperbarui.', 'profil' => $profil->fresh()]);
-        }
-
-        // Create new
-        $fotoPath = null;
         if ($request->hasFile('foto')) {
-            $fotoPath = $request->file('foto')->store('profil', 'public');
+            if ($profil->foto) {
+                Storage::disk('public')->delete($profil->foto);
+            }
+            $data['foto'] = $request->file('foto')->store('profil', 'public');
         }
 
-        $profil = ProfilUMKM::create([
-            'idAdmin'     => auth()->id(),
-            'namaUMKM'    => $validated['namaUMKM'],
-            'deskripsi'   => $validated['deskripsi'],
-            'alamat'      => $validated['alamat'],
-            'noTelepon'   => $validated['noTelepon'],
-            'email'       => $validated['email'] ?? null,
-            'mediaSosial' => $validated['mediaSosial'] ?? null,
-            'foto'        => $fotoPath,
-        ]);
+        $profil->fill($data)->save();
 
-        return response()->json(['message' => 'Profil berhasil dibuat.', 'profil' => $profil], 201);
+        return response()->json([
+            'message' => $isNew ? 'Profil berhasil dibuat.' : 'Profil berhasil diperbarui.',
+            'profil'  => $profil->fresh(),
+        ], $isNew ? 201 : 200);
     }
 }
