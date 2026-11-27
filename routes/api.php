@@ -20,6 +20,9 @@ use Illuminate\Support\Facades\Route;
 
 // No public registration (PP §4.5): the admin account is created by the seeder during setup.
 Route::post('/auth/login', [AuthController::class, 'login']);
+Route::post('/auth/forgot-password', [AuthController::class, 'kirimOtp'])->middleware('throttle:6,1');
+Route::post('/auth/verify-otp', [AuthController::class, 'verifikasiOtp'])->middleware('throttle:10,1');
+Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:6,1');
 
 // Public storefront routes
 Route::get('/public/produk', [ProdukController::class, 'publicIndex']);
