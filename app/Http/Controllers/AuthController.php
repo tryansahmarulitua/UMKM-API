@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Admin;
+use App\Support\Turnstile;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -19,9 +20,14 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'email'    => ['required', 'email'],
-            'password' => ['required', 'string'],
+            'email'     => ['required', 'email'],
+            'password'  => ['required', 'string'],
+            'turnstile' => ['nullable', 'string', 'max:2048'],
         ]);
+
+        if (! Turnstile::lolos($validated['turnstile'] ?? null, $request->ip())) {
+            return response()->json(['message' => 'Verifikasi keamanan gagal. Coba lagi.'], 403);
+        }
 
         // PP §4.5: lock login for 15 minutes after 5 failed attempts.
         $throttleKey = Str::lower($validated['email']) . '|' . $request->ip();
